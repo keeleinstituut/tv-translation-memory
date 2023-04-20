@@ -36,12 +36,12 @@ RUN rm /etc/apt/sources.list.d/dotdeb.org.list && apt-get update
 
 # Install Apache Spark
 RUN apt-get install -y scala
-RUN wget http://d3kbcqa49mib13.cloudfront.net/spark-1.6.3-bin-hadoop2.6.tgz
+RUN wget https://archive.apache.org/dist/spark/spark-1.6.3/spark-1.6.3-bin-hadoop2.6.tgz
 RUN tar xzf spark-1.6.3-bin-hadoop2.6.tgz && mv spark-1.6.3-bin-hadoop2.6 /opt/
 
 # Install PostgreSQL
 ENV LSB_RELEASE stretch
-RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ ${LSB_RELEASE}-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+RUN sh -c 'echo "deb http://apt-archive.postgresql.org/pub/repos/apt/ ${LSB_RELEASE}-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
 RUN apt-get update
 
 ENV PSQL_VERSION 11
@@ -52,7 +52,7 @@ RUN apt-get install -y ruby ruby-dev
 
 # Install & configure Api doc generator
 RUN apt-get install -y curl
-RUN curl -sL https://deb.nodesource.com/setup_8.x | bash -
+RUN curl -sL https://deb.nodesource.com/setup_16.x | bash -
 RUN apt-get install -y nodejs
 RUN npm install apidoc -g
 
@@ -65,8 +65,14 @@ RUN apt-get install -y logrotate
 # Install & setup Supervisord
 RUN apt-get install -y supervisor
 
+RUN apt-get remove -y python-pip python3-pip
+RUN wget https://bootstrap.pypa.io/pip/2.7/get-pip.py
+RUN python get-pip.py
+# RUN wget https://bootstrap.pypa.io/get-pip.py
+RUN python3 get-pip.py
+
 # Install Python packages
-RUN pip3 install flask flask_restful flask_principal flask_jwt celery flower flask_sqlalchemy langid networkx babel "elasticsearch>=6.0.0,<7.0.0" "elasticsearch_dsl>=6.0.0,<7.0.0" iso639 couchdb pymongo redis lxml zipstream uwsgi kytea requests requests-toolbelt  treetaggerwrapper nltk pyyaml editdistance translate future pyresttest psycopg2 pexpect microsofttranslator CMRESHandler
+RUN pip3 install flask flask_restful flask_principal flask_jwt celery flower flask_sqlalchemy langid networkx babel "elasticsearch>=6.0.0,<7.0.0" "elasticsearch_dsl>=6.0.0,<7.0.0" iso639 couchdb pymongo redis lxml zipstream uwsgi "kytea==0.1.5" requests requests-toolbelt  treetaggerwrapper nltk pyyaml editdistance translate future pyresttest psycopg2 pexpect microsofttranslator CMRESHandler
 RUN pip3 install theano gunicorn
 
 # Download universtal POS tagset
@@ -91,7 +97,7 @@ RUN git clone --recursive https://github.com/shasha79/nectm $ELASTICTM
 WORKDIR $ELASTICTM
 RUN cd $ELASTICTM
 #################################################################
-
+RUN cd tools/pytercpp && git clone https://github.com/cservan/tercpp.git
 # Copy universal tag map to NTLK data directory
 RUN cp tools/universal-pos-tags-master/*-treetagger-pg.map /usr/share/nltk_data/taggers/universal_tagset/
 
