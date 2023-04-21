@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y git
 
 # Install dependencies
 RUN apt-get install -y python3-pip && pip3 install virtualenv
+RUN apt-get install -y procps
 
 # Activate VirtualEnv in 'venv' directory
 # TODO (not working now): RUN virtualenv $ELASTICTM/venv && . $ELASTICTM/venv/bin/activate
@@ -132,6 +133,7 @@ RUN echo "path.repo: /elasticsearch_data/backup" >> /etc/elasticsearch/elasticse
 RUN mkdir /opt/elasticsearch/ && chown -R elasticsearch /opt/elasticsearch/
 RUN mkdir -p $ELASTICTM_VOLUME/log/elasticsearch/ && mkdir -p $ELASTICTM_VOLUME/es_data && chown -R elasticsearch $ELASTICTM_VOLUME/log/elasticsearch/ $ELASTICTM_VOLUME/es_data
 RUN mkdir -p $ELASTICTM_VOLUME/log/activatm/
+RUN mkdir /elasticsearch_data && chown -R elasticsearch /elasticsearch_data
 
 # For convenience
 RUN echo '"\en": history-search-forward' > ~/.inputrc
@@ -143,9 +145,8 @@ RUN cp conf/supervisord.conf /etc/supervisor/conf.d/activatm.conf
 RUN cp docker/wait-for-postgres.sh ~/
 # Create activatm user (Celery is run under it)
 RUN useradd -ms /bin/bash activatm
-
-RUN echo  "#! /bin/bash\n /etc/init.d/postgresql start; ~/wait-for-postgres.sh ; su postgres -c \"psql -c \\\"create user activatm; alter user activatm with password 'activatm' \\\"\" ; chown -R elasticsearch:elasticsearch /elasticsearch_data; service elasticsearch start;  supervisord "  > run.sh
-
+RUN pip3 install tornado
+RUN echo  "#! /bin/bash\n/etc/init.d/postgresql start; ~/wait-for-postgres.sh ; su postgres -c \"psql -c \\\"create user activatm; alter user activatm with password 'activatm' \\\"\" ; chown -R elasticsearch:elasticsearch /elasticsearch_data; service elasticsearch start;  supervisord "  > run.sh
 RUN chmod +x run.sh
 # Run Supervisor - responsible to start up & keep alive all services:
 # - ElasticSearch, Nginx, uWSGI, Celery, Redis
