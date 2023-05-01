@@ -119,7 +119,7 @@ RUN ( cd tools/pytercpp; python3 setup.py build install )
 RUN ( cd tools/pragmatic_segmenter-master; gem install pragmatic_segmenter )
 
 # Generate API documentation
-RUN ( cd src/RestApi/; nodejs --harmony `which apidoc` -i . -o ../../doc )
+RUN ( cd src/RestApi/; node --harmony `which apidoc` -i . -o ../../doc )
 
 # Setup UWSGI
 RUN mkdir -p $ELASTICTM_VOLUME/log/elastictm && touch $ELASTICTM_VOLUME/log/elastictm/gunicorn.log $ELASTICTM_VOLUME/log/elastictm/celery-worker.log
