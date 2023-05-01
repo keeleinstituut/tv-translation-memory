@@ -1,4 +1,4 @@
-FROM debian:9.8
+FROM debian:11
 MAINTAINER Pangeanic <info@pangeanic.com>
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -15,7 +15,7 @@ RUN apt-get install -y procps
 # Install packages
 RUN apt-get install -y libxml2-dev libxslt1-dev python-dev python3-bs4 libcurl4-openssl-dev apt-transport-https zip
 RUN apt-get install -y libblas-dev liblapack-dev libatlas-base-dev gfortran libssl-dev
-RUN apt-get install -y python-numpy python-scipy python-matplotlib ipython python-pandas python-sympy python-nose
+RUN apt-get install -y python3-numpy python3-scipy python3-matplotlib python3-ipython python3-pandas python3-sympy python3-nose
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils software-properties-common
 # Install Java
 RUN apt-get install -y default-jre default-jdk
@@ -29,24 +29,33 @@ RUN echo "deb https://artifacts.elastic.co/packages/6.x/apt stable main" | tee -
 RUN apt-get update && apt-get install -y --force-yes elasticsearch
 #RUN /usr/share/elasticsearch/bin/plugin install mobz/elasticsearch-head
 
-# Install Redis
-RUN echo "deb http://packages.dotdeb.org squeeze all" | tee -a /etc/apt/sources.list.d/dotdeb.org.list
-RUN apt-get update && apt-get install -y --force-yes redis-server
-# Remove sources as they conflict with nginx installation
-RUN rm /etc/apt/sources.list.d/dotdeb.org.list && apt-get update
+# # Install Redis
+# RUN echo "deb http://packages.dotdeb.org bullseye all" | tee -a /etc/apt/sources.list.d/dotdeb.org.list
+# RUN apt-get update && apt-get install -y --force-yes redis-server
+# # Remove sources as they conflict with nginx installation
+# RUN rm /etc/apt/sources.list.d/dotdeb.org.list && apt-get update
+RUN apt install -y --force-yes redis-server
 
 # Install Apache Spark
 RUN apt-get install -y scala
 RUN wget https://archive.apache.org/dist/spark/spark-1.6.3/spark-1.6.3-bin-hadoop2.6.tgz
 RUN tar xzf spark-1.6.3-bin-hadoop2.6.tgz && mv spark-1.6.3-bin-hadoop2.6 /opt/
 
-# Install PostgreSQL
-ENV LSB_RELEASE stretch
-RUN sh -c 'echo "deb http://apt-archive.postgresql.org/pub/repos/apt/ ${LSB_RELEASE}-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-RUN apt-get update
+# # Install PostgreSQL
+# ENV LSB_RELEASE bullseye
+# RUN sh -c 'echo "deb http://apt-archive.postgresql.org/pub/repos/apt/ ${LSB_RELEASE}-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+# RUN apt-get update
 
+# ENV PSQL_VERSION 11
+# RUN apt-get install -y --allow-unauthenticated postgresql-${PSQL_VERSION} postgresql-server-dev-${PSQL_VERSION}
+RUN apt update
+RUN apt install -y --force-yes vim curl gpg gnupg2 software-properties-common apt-transport-https lsb-release ca-certificates
+RUN curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" | tee  /etc/apt/sources.list.d/pgdg.list
+RUN apt update
 ENV PSQL_VERSION 11
-RUN apt-get install -y --allow-unauthenticated postgresql-${PSQL_VERSION} postgresql-server-dev-${PSQL_VERSION}
+RUN apt install -y --force-yes --allow-unauthenticated postgresql-${PSQL_VERSION} postgresql-server-dev-${PSQL_VERSION}
+
 
 # Install Ruby
 RUN apt-get install -y ruby ruby-dev
@@ -66,14 +75,14 @@ RUN apt-get install -y logrotate
 # Install & setup Supervisord
 RUN apt-get install -y supervisor
 
-RUN apt-get remove -y python-pip python3-pip
-RUN wget https://bootstrap.pypa.io/pip/2.7/get-pip.py
-RUN python get-pip.py
-# RUN wget https://bootstrap.pypa.io/get-pip.py
-RUN python3 get-pip.py
+# RUN apt-get remove -y python-pip python3-pip
+# RUN wget https://bootstrap.pypa.io/pip/2.7/get-pip.py
+# RUN python get-pip.py
+# # RUN wget https://bootstrap.pypa.io/get-pip.py
+# RUN python3 get-pip.py
 
 # Install Python packages
-RUN pip3 install flask flask_restful flask_principal flask_jwt celery flower flask_sqlalchemy langid networkx babel "elasticsearch>=6.0.0,<7.0.0" "elasticsearch_dsl>=6.0.0,<7.0.0" iso639 couchdb pymongo redis lxml zipstream uwsgi "kytea==0.1.5" requests requests-toolbelt  treetaggerwrapper nltk pyyaml editdistance translate future pyresttest psycopg2 pexpect microsofttranslator CMRESHandler
+RUN pip3 install flask flask_restful flask_principal flask_jwt celery flower flask_sqlalchemy langid networkx babel "elasticsearch>=6.0.0,<7.0.0" "elasticsearch_dsl>=6.0.0,<7.0.0" iso639 couchdb pymongo redis lxml zipstream uwsgi kytea requests requests-toolbelt  treetaggerwrapper nltk pyyaml editdistance translate future pyresttest psycopg2 pexpect microsofttranslator CMRESHandler
 RUN pip3 install theano gunicorn
 
 # Download universtal POS tagset
@@ -94,7 +103,7 @@ USER root
 # Clone the conf files into the docker container
 RUN echo " Cloning----"
 RUN echo " ==== ...."
-RUN git clone --recursive https://github.com/shasha79/nectm $ELASTICTM
+RUN git clone --recursive -b feature/#216/setup-nectm https://github.com/keeleinstituut/tv-translation-memory.git $ELASTICTM
 WORKDIR $ELASTICTM
 RUN cd $ELASTICTM
 #################################################################
