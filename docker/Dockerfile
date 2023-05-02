@@ -75,12 +75,6 @@ RUN apt-get install -y logrotate
 # Install & setup Supervisord
 RUN apt-get install -y supervisor
 
-# RUN apt-get remove -y python-pip python3-pip
-# RUN wget https://bootstrap.pypa.io/pip/2.7/get-pip.py
-# RUN python get-pip.py
-# # RUN wget https://bootstrap.pypa.io/get-pip.py
-# RUN python3 get-pip.py
-
 # Install Python packages
 RUN pip3 install flask flask_restful flask_principal flask_jwt celery flower flask_sqlalchemy langid networkx babel "elasticsearch>=6.0.0,<7.0.0" "elasticsearch_dsl>=6.0.0,<7.0.0" iso639 couchdb pymongo redis lxml zipstream uwsgi kytea requests requests-toolbelt  treetaggerwrapper nltk pyyaml editdistance translate future pyresttest psycopg2 pexpect microsofttranslator CMRESHandler
 RUN pip3 install theano gunicorn
