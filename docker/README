@@ -4,7 +4,7 @@ sudo apt-get install docker-ce
 # Build Docker image:
 sudo docker build -t activatm .
 
-# Run Docker image (mapping ports for API, documentation & ElasticSearch)
+# Run Docker image (mapping ports for API, documentation & OpenSearch)
 sudo docker run  -p 17979:7979 -p 17878:7878 -p 19200:9200 -t activatm
 
 # Run Docker image (interactive mode, for debugging)
@@ -16,7 +16,7 @@ sudo docker save elastictm | gzip -c > activatm_docker.tgz
 # Load image
 sudo docker load -i activatm_docker.tgz
 
-# Backup volume (persistent "disk" where ElasticSearch stores data & logs)
+# Backup volume (persistent "disk" where OpenSearch stores data & logs)
 sudo docker run --rm --volumes-from activatm -v $(pwd):/backup debian tar cvf /backup/backup.tar /elastictm
 
 # Restore volume:

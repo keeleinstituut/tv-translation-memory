@@ -56,7 +56,7 @@
 """
 
 """
-  @api {INFO} /Settings Query -- Query Elasticsearch
+  @api {INFO} /Settings Query -- Query Opensearch
   @apiName Query
   @apiVersion 0.1.0
   @apiGroup Settings
@@ -64,7 +64,7 @@
 
   @apiExample {curl} Example & Notes
 
-  # List elasticsearch index => curl 'localhost:9200/_cat/indices?v'
+  # List opensearch index => curl 'localhost:9200/_cat/indices?v'
   # List all documents of specific index => http://localhost:9200/tm_es/_search?pretty=true&q=*:*
   # Delete an index => curl -X DELETE 'http://localhost:9200/map_en_es/'
   # Query an specific text => curl -XPOST 'localhost:9200/tm_en/_search?pretty' -d '{"query":{"match":{"text":"It is also possible to send an email to client_service@repair.net."}}}'

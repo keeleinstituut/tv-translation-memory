@@ -24,8 +24,7 @@
 from cmreslogging.handlers import CMRESHandler
 from Config.Config import G_CONFIG
 import logging
-from elasticsearch_dsl import MultiSearch, Search
-from elasticsearch import Elasticsearch
+from opensearchpy import OpenSearch, MultiSearch, Search
 # Forcing modification of a private field to avoid logging redundant data
 CMRESHandler._CMRESHandler__LOGGING_FILTER_FIELDS += ['args', 'exc_info', 'exc_text', 'filename', 'funcName',
                                                                    'levelname',
@@ -41,13 +40,13 @@ class TMQueryLogger:
   ES_INDEX_NAME="query_log"
 
   def __init__(self):
-    es_config = G_CONFIG.config['elasticsearch']
+    es_config = G_CONFIG.config['opensearch']
     hosts = [{'host': es_config['host'], 'port': es_config['port']}]
     self.handler = CMRESHandler(hosts=hosts,
                            auth_type=CMRESHandler.AuthType.NO_AUTH,
                            es_index_name=self.ES_INDEX_NAME,
                            index_name_frequency=CMRESHandler.IndexNameFrequency.MONTHLY)
-    self.es = Elasticsearch(hosts=hosts)
+    self.es = OpenSearch(hosts=hosts)
     self.log = logging.getLogger(self.LOGGER_NAME)
     self.log.setLevel(logging.INFO)
     self.log.addHandler(self.handler)

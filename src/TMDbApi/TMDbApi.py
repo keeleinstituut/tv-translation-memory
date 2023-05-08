@@ -64,7 +64,7 @@ class TMDbApi:
   QUERY_PENALIZE = G_CONFIG.get_query_penalize()
   DIRTY_THRESHOLD = G_CONFIG.get_dirty_threshold()
 
-  def __init__(self, map_engine = 'elasticsearch', **kwargs):
+  def __init__(self, map_engine = 'opensearch', **kwargs):
     self.ml_index = TMMonoLing(timeout=30, max_retries=3, retry_on_timeout=True)
     self.seg_map = TMMap.create(map_engine)
     self.timer = TMTimer("TMDbApi")
@@ -78,7 +78,7 @@ class TMDbApi:
 
   # Add new segment
   def add_segment(self, segment):
-    # Add segment source and target texts to the correspondent index of ElasticSearch
+    # Add segment source and target texts to the correspondent index of OpenSearch
     self.ml_index.add_segment(segment, 'source')
     self.ml_index.add_segment(segment, 'target')
 
@@ -376,17 +376,17 @@ class TMDbApi:
         else:
             break
       self.timer.stop("doc2segment")
-      # If concordance mode is requested, return here without matching postprocessing -- return elasticsearch segments
+      # If concordance mode is requested, return here without matching postprocessing -- return opensearch segments
       if qparams.concordance: return self._match(q, qinfo, l_best_segments, qparams)
     logging.info("Best segments(1): {}".format(l_best_segments))
-    # Call automatic translation if elasticsearch doesn't find any segment
+    # Call automatic translation if opensearch doesn't find any segment
     if not l_best_segments:
       l_best_segments.append((TMTranslationUnit(
         {'source_text': ' ', 'target_text': ' ', 'source_language': qparams.source_lang,
          'target_language': qparams.target_lang, 'domain': qparams.domains, 'file_name': '', 'tm_creation_date': '',
          'tm_change_date': '', 'username': ''}),0))
 
-    # Improve ElasticSearch match
+    # Improve OpenSearch match
     out_segments, check_match = self._match(q, qinfo, l_best_segments, qparams)
     logging.info("Best segments(2): {}".format(out_segments))
 

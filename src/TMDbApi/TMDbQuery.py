@@ -22,7 +22,7 @@
 # under the License.
 #
 import logging
-from elasticsearch_dsl import MultiSearch, Search, Q
+from opensearchpy import MultiSearch, Search, Q
 
 class TMDbQuery:
 
@@ -146,8 +146,8 @@ class TMDbQuery:
 
 
 if __name__ == '__main__':
-  from elasticsearch import Elasticsearch
-  es = Elasticsearch()
+  from opensearch import OpenSearch
+  es = OpenSearch()
   index = "map_en_es"
   q = TMDbQuery(es, index)
   print([r.to_dict() for r in q.duplicates("source_text")])
