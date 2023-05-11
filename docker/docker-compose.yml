@@ -58,20 +58,19 @@ services:
     ports:
       - "8081:8081"
     environment:
-      - "SPARK_MASTER=spark://tv_spark:7077"
+      - "SPARK_MASTER=spark://spark:7077"
     networks:
       - tv-network
   
   opensearch-node: # This is also the hostname of the container within the Docker network (i.e. https://opensearch-node/)
-    container_name: tv_opensearch
     image: opensearchproject/opensearch:latest # Specifying the latest available image - modify if you want a specific version
     environment:
       - cluster.name=opensearch-cluster # Name the cluster
       - node.name=opensearch-node # Name the node that will run in this container
-      - discovery.seed_hosts=opensearch-node # Nodes to look for when discovering the cluster
       - cluster.initial_cluster_manager_nodes=opensearch-node # Nodes eligible to serve as cluster manager
       - bootstrap.memory_lock=true # Disable JVM heap memory swapping
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" # Set min and max JVM heap sizes to at least 50% of system RAM
+      - DISABLE_SECURITY_PLUGIN=true 
     ulimits:
       memlock:
         soft: -1 # Set memlock to unlimited (no soft or hard limit)
@@ -79,6 +78,8 @@ services:
       nofile:
         soft: 65536 # Maximum number of open files for the opensearch user - set to at least 65536
         hard: 65536
+    depends_on:
+      - postgres
     volumes:
       - opensearch-data1:/usr/share/opensearch/data # Creates volume called opensearch-data1 and mounts it to the container
     ports:
@@ -95,9 +96,11 @@ services:
     expose:
       - "5601" # Expose port 5601 for web access to OpenSearch Dashboards
     environment:
-      OPENSEARCH_HOSTS: '["https://tv_opensearch:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
+      OPENSEARCH_HOSTS: '["http://opensearch-node:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
     networks:
       - tv-network
+    depends_on:
+      - opensearch-node
 
   activatm:
     build: .

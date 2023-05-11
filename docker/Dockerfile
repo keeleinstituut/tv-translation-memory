@@ -90,7 +90,7 @@ RUN chmod -R oag+w $ELASTICTM_VOLUME/log/elastictm
 RUN cp conf/logrotate.conf /etc/logrotate.d/activatm
 
 # Setup supervisord
-RUN cp conf/supervisord.conf /etc/supervisor/conf.d/activatm.conf
+copy supervisord.conf /etc/supervisor/conf.d/activatm.conf
 
 RUN cp docker/wait-for-postgres.sh ~/
 # Create activatm user (Celery is run under it)
