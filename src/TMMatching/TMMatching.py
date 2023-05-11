@@ -119,7 +119,7 @@ class TMMatching:
 
     # 1. sort segment list
     rank_segments = self._match_rank(l_best_segments)
-    logging.info("SEGMENTS FROM ELASTICSEARCH")
+    logging.info("SEGMENTS FROM OPENSEARCH")
     for seg in rank_segments:
       logging.info(u"{}".format(safe_str(seg[0][0].source_text)))
 
@@ -635,12 +635,12 @@ class TMMatching:
     if operation == 'I':
       if len(text) > position:
         if part == 'target' and pos_Tag != '.':
-          for x in reversed([query_word]): text.insert(position, self._obtain_translation(x, 1)) #Return only one word from elasticsearch  text.insert(position,self.tm_translator.translate(x))#
+          for x in reversed([query_word]): text.insert(position, self._obtain_translation(x, 1)) #Return only one word from opensearch  text.insert(position,self.tm_translator.translate(x))#
         else:
           for x in reversed([query_word]): text.insert(position, x)
       else:
         if part == 'target' and pos_Tag != '.':
-          candidate_translation = self._obtain_translation(query_word, 4) # Return at least 4 words from elasticsearch
+          candidate_translation = self._obtain_translation(query_word, 4) # Return at least 4 words from opensearch
           if candidate_translation: text.append(candidate_translation)#  self._obtain_translation(query_word, 1, 1) text.append(self.tm_translator.translate(query_word))  # tgt_word
         else:
           text.append(query_word) #
@@ -650,7 +650,7 @@ class TMMatching:
 
   def _obtain_translation(self, query_word, limit):
 
-    # Search translation on Elasticsearch
+    # Search translation on Opensearch
     candidate_translation = self.match['posTag'].search_exact_value(query_word, limit)[0]  # Search translation on ElasticTM
     if not candidate_translation:
       wordT = query_word

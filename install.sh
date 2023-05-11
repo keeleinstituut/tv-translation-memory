@@ -28,16 +28,16 @@ sudo apt-get install libxml2-dev libxslt1-dev python-dev python3-bs4 libcurl4-op
 
 # Install & configure ElasticSearch 
 echo "deb https://packages.elastic.co/elasticsearch/2.x/debian stable main" | sudo tee -a /etc/apt/sources.list.d/elasticsearch-2.x.list
-sudo apt-get update && sudo apt-get install elasticsearch
-sudo cp conf/elasticsearch.yml /etc/elasticsearch/
-sudo /usr/share/elasticsearch/bin/plugin install mobz/elasticsearch-head
+sudo apt-get update && sudo apt-get install opensearch
+sudo cp conf/opensearch.yml /etc/opensearch/
+sudo /usr/share/opensearch/bin/plugin install mobz/opensearch-head
 # Start up Debian/Ubuntu
-sudo update-rc.d elasticsearch defaults 95 10
+sudo update-rc.d opensearch defaults 95 10
 # Start up Debian 8 or Ubuntu 14
 #sudo /bin/systemctl daemon-reload
-#sudo /bin/systemctl enable elasticsearch.service
-#sudo /bin/systemctl start elasticsearch.service
-sudo service elasticsearch start
+#sudo /bin/systemctl enable opensearch.service
+#sudo /bin/systemctl start opensearch.service
+sudo service opensearch start
 
 # Install Redis
 echo "deb http://packages.dotdeb.org squeeze all" | sudo tee -a /etc/apt/sources.list.d/dotdeb.org.list
@@ -68,7 +68,7 @@ sudo make install
 cd -
 
 # Install Python packages
-pip3 install flask flask_restful flask_principal flask_jwt celery flask_sqlalchemy langid networkx babel elasticsearch elasticsearch_dsl iso639 couchdb pymongo redis lxml zipstream uwsgi kytea requests treetaggerwrapper nltk pyyaml theano editdistance translate future pyresttest
+pip3 install flask flask_restful flask_principal flask_jwt celery flask_sqlalchemy langid networkx babel opensearchpy iso639 couchdb pymongo redis lxml zipstream uwsgi kytea requests treetaggerwrapper nltk pyyaml theano editdistance translate future pyresttest
 
 # Build & install pytercpp
 sudo apt-get install libbost-all-dev

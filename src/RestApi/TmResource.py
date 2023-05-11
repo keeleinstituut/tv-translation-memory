@@ -63,7 +63,7 @@ from flask_jwt import current_identity
 class TmResource(Resource):
   decorators = [PermissionChecker(user_permission)]
 
-  db = TMDbApi('elasticsearch')
+  db = TMDbApi('opensearch')
   job_api = ESJobApi()
   qlogger = TMQueryLogger()
 
@@ -165,7 +165,7 @@ class TmResource(Resource):
       op_match = []
     else: op_match = args.operation_match.split(',')
     # The second argument is an empty list, because the query has not been preprocessed (tokenizer and posTag)
-    # exact_query indicate if we want to search on elasticsearch segments with exact length
+    # exact_query indicate if we want to search on opensearch segments with exact length
     tag_ids = args.tag if args.tag else args.domain # backward compatibility fallback
     self._validate_tag_ids(tag_ids, abort_if_not_exists=False)
 

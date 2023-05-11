@@ -1,9 +1,6 @@
 general:
   log_path: /tmp/elastictm/
   export_path: /tmp/elastictm/export
-elasticsearch:
-  host: localhost
-  port: 9200
   # TODO: other settings (number of cores, memory limit etc.)
 
 spark:
@@ -15,7 +12,7 @@ query:
     #Penalize match if segment doesn't belong to requested domain or it is a dirty segment
     p_domain: 5
     p_dirty: 5
-    # Token count to query elasticsearch
+    # Token count to query opensearch
     p_token_count: 50
     # Align similar words
     p_src_tgt_align: 0.25

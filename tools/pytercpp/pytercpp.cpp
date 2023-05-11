@@ -17,7 +17,7 @@ static bool PyListToVector(PyObject* listObj, vector<string>& outVector) {
     for (int i=0; i<numWords; i++){
         /* grab the string object from the next element of the list */
         strObj = PyList_GetItem(listObj, i); /* Can't fail */
-        char* str = PyUnicode_AsUTF8(strObj); //PyBytes_AsString( strObj );
+        const char* str = PyUnicode_AsUTF8(strObj); //PyBytes_AsString( strObj );
 
         /* push to output vector */
         if(str)

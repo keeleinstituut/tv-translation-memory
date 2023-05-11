@@ -84,7 +84,7 @@ class TMUtils:
 
   @staticmethod
   def clean_empty_domains(es):
-    from elasticsearch_dsl import Search
+    from opensearchpy import Search
     search = Search(using=es, index="map_*").query("match", domain="")[:1000]
     for hit in search:
       domains = [d for d in hit.domain if d]
@@ -120,6 +120,6 @@ class TMTimer:
 
 
 if __name__ == "__main__":
-  from elasticsearch import Elasticsearch
-  es = Elasticsearch()
+  from opensearchpy import OpenSearch
+  es = OpenSearch()
   TMUtils.clean_empty_domains(es)

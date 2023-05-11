@@ -217,7 +217,7 @@ class Tags(db.Model):
    def to_dict(self):
      return CRUD.to_dict(self)
 
-   # Use this method to migrate existing tags (domains) from ElasticSearch
+   # Use this method to migrate existing tags (domains) from OpenSearch
    @staticmethod
    def get_add_tags(tags):
      for tag_id in tags:

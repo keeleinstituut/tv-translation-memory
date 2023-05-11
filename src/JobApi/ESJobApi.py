@@ -22,8 +22,7 @@
 # under the License.
 #
 import datetime
-from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Search, Q
+from opensearchpy import OpenSearch, Search, Q
 from JobApi.JobApiC import JobApi
 from TMDbApi.TMUtils import TMUtils
 
@@ -33,7 +32,7 @@ class ESJobApi(JobApi):
   INDEX = 'jobs'
 
   def __init__(self, **kwargs):
-    self.es = Elasticsearch(kwargs = kwargs)
+    self.es = OpenSearch(kwargs = kwargs)
     if not self.es.indices.exists(index=self.INDEX):
       self.es.indices.create(index=self.INDEX, body=self._index_template())
     self.es.indices.put_template(name='job_template', body=self._index_template())

@@ -25,8 +25,7 @@ import uuid
 import re
 import logging
 import datetime
-from elasticsearch import Elasticsearch, helpers
-from elasticsearch_dsl import Search, MultiSearch, Q
+from opensearchpy import OpenSearch, Search, MultiSearch, Q, helpers
 import networkx
 
 from TMDbApi.TMMap.TMMap import TMMap
@@ -38,7 +37,7 @@ class TMMapES(TMMap):
   UPSERT_SCRIPT='upsert_segment'
 
   def __init__(self):
-    self.es = Elasticsearch(timeout=30, max_retries=3, retry_on_timeout=True)
+    self.es = OpenSearch(timeout=30, max_retries=3, retry_on_timeout=True)
     self.DOC_TYPE = 'id_map'
     self.refresh_lang_graph()
     self.es.indices.put_template(name='map_template', body=self._index_template())
@@ -51,7 +50,7 @@ class TMMapES(TMMap):
     m_index,swap = self._get_index(segment.source_language, segment.target_language, create_missing=True)
     doc = self._segment2doc(segment)
     if swap: self._swap(doc)
-    # Add segment source and target texts to the correspondent index of ElasticSearch
+    # Add segment source and target texts to the correspondent index of OpenSearch
     s_result = self.es.index(index=m_index, doc_type=self.DOC_TYPE, id=self._allocate_id(segment, swap),
                              body = doc,
                               ignore=409) # don't throw exception if a document already exists

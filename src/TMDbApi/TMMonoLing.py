@@ -30,8 +30,7 @@ import logging
 import datetime
 import uuid
 import json
-from elasticsearch import Elasticsearch, helpers
-from elasticsearch_dsl import Search
+from opensearchpy import OpenSearch, Search, helpers
 
 from TMDbApi.TMTranslationUnit import TMTranslationUnit
 from TMDbApi.TMUtils import TMUtils
@@ -46,7 +45,7 @@ class TMMonoLing:
   DOC_TYPE = 'tm'
 
   def __init__(self, **kwargs):
-    self.es = Elasticsearch(kwargs = kwargs)
+    self.es = OpenSearch(kwargs = kwargs)
     # Put default index template
     self.es.indices.put_template(name='tm_template', body = self._index_template())
     self.refresh()
@@ -57,7 +56,7 @@ class TMMonoLing:
 
   # Add new segment
   def add_segment(self, segment, ftype):
-    # Add segment source and target texts to the correspondent index of ElasticSearch
+    # Add segment source and target texts to the correspondent index of OpenSearch
     id = getattr(segment, ftype + '_id')
     index = TMUtils.lang2es_index(getattr(segment, ftype + '_language'))
     s_result = self.es.index(index=index,
@@ -171,7 +170,7 @@ class TMMonoLing:
 
   ############### Helper methods ###################
   def _segment2es_bulk(self, segments, ftype, op_type, f_action):
-    # Add segment source and target texts to the correspondent index of ElasticSearch in a batch
+    # Add segment source and target texts to the correspondent index of OpenSearch in a batch
     actions = []
     added_ids = set()
     for segment in segments:
