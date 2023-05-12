@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y git
 RUN apt-get install -y python3-pip && pip3 install virtualenv
 
 # Activate VirtualEnv in 'venv' directory
-# TODO (not working now): RUN virtualenv $ELASTICTM/venv && . $ELASTICTM/venv/bin/activate
 
 # Install packages
 RUN apt-get install -y libxml2-dev libxslt1-dev python3-dev python3-bs4 libcurl4-openssl-dev apt-transport-https zip libtercpp-dev
@@ -82,10 +81,6 @@ RUN ( cd src/RestApi/; node --harmony `which apidoc` -i . -o ../../doc )
 RUN mkdir -p $ELASTICTM_VOLUME/log/elastictm && touch $ELASTICTM_VOLUME/log/elastictm/gunicorn.log $ELASTICTM_VOLUME/log/elastictm/celery-worker.log
 RUN chmod -R oag+w $ELASTICTM_VOLUME/log/elastictm
 
-# Setting Celery as a daemon
-#RUN touch $ELASTICTM_VOLUME/log/elastictm/celery-worker.log
-
-
 #################### Copy service configurations ############
 RUN cp conf/logrotate.conf /etc/logrotate.d/activatm
 
@@ -96,17 +91,14 @@ RUN cp docker/wait-for-postgres.sh ~/
 # Create activatm user (Celery is run under it)
 RUN useradd -ms /bin/bash activatm
 
-RUN echo  "#! /bin/bash\n supervisord "  > run.sh
+RUN npm install http-server -g
+RUN echo  "#! /bin/bash\n supervisord;"  > run.sh
+RUN echo  "#! /bin/bash\n http-server /opt/elastictm/doc --port 3050;"  > rundocs.sh
 
 RUN chmod +x run.sh
+RUN chmod +x rundocs.sh
 # Run Supervisor - responsible to start up & keep alive all services:
-# - OpenSearch, Nginx, uWSGI, Celery, Redis
 CMD ["./run.sh"]
- # ES port
-EXPOSE 9200
-# API port (via nginx)
-EXPOSE 7979
-# API documentation port (via nginx)
-EXPOSE 7878
-
+CMD ["./rundocs.sh"]
+EXPOSE 3050
 VOLUME $ELASTICTM_VOLUME

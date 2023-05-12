@@ -9,8 +9,8 @@ services:
       - 5432:5432
     environment:
       - POSTGRES_DB=app
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=pass
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     networks:
       - tv-network
     volumes:
@@ -29,15 +29,14 @@ services:
   nginx:
     container_name: tv_web
     build: ./nginx
-    ports:
-      - "80:80"
-      - "7979:7979"
-      - "7878:7878"
     environment:
       - NGINX_HOST=localhost
       - NGINX_PORT=80
     networks:
       - tv-network
+    ports:
+      - "7979:7979"
+      - "7878:7878"
 
   spark:
     container_name: tv_spark
@@ -109,7 +108,12 @@ services:
       - postgres
       - nginx
       - spark
-      - opensearch-node
+      - opensearch-node    
+    networks:
+      - tv-network
+    ports:
+      - 3050:3050 
+    
 
 volumes:
   opensearch-data1:

@@ -1,3 +1,3 @@
 FROM nginx
-COPY ./elastictm.conf /etc/nginx/sites-enabled/elastictm.conf
+COPY ./elastictm.conf /etc/nginx/conf.d/elastictm.conf
 COPY ./logrotate.conf /etc/logrotate.d/activatm
