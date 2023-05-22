@@ -6,7 +6,7 @@ services:
     container_name: tv_db
     image: postgres:11
     ports:
-      - 5432:5432
+      - 5433:5432
     environment:
       - POSTGRES_DB=app
       - POSTGRES_USER=postgres
@@ -87,19 +87,19 @@ services:
     networks:
       - tv-network # All of the containers will join the same Docker bridge network
   
-  opensearch-dashboards:
-    container_name: tv_dev_os_dashboard
-    image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
-    ports:
-      - 5601:5601 # Map host port 5601 to container port 5601
-    expose:
-      - "5601" # Expose port 5601 for web access to OpenSearch Dashboards
-    environment:
-      OPENSEARCH_HOSTS: '["http://opensearch-node:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
-    networks:
-      - tv-network
-    depends_on:
-      - opensearch-node
+  # opensearch-dashboards:
+  #   container_name: tv_dev_os_dashboard
+  #   image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
+  #   ports:
+  #     - 5601:5601 # Map host port 5601 to container port 5601
+  #   expose:
+  #     - "5601" # Expose port 5601 for web access to OpenSearch Dashboards
+  #   environment:
+  #     OPENSEARCH_HOSTS: '["http://opensearch-node:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
+  #   networks:
+  #     - tv-network
+  #   depends_on:
+  #     - opensearch-node
 
   activatm:
     build: .
@@ -107,12 +107,13 @@ services:
       - redis
       - postgres
       - nginx
-      - spark
-      - opensearch-node    
+      #- spark
+      #- opensearch-node    
     networks:
       - tv-network
     ports:
       - 3050:3050 
+      - 5001:5000
     
 
 volumes:

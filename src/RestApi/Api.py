@@ -39,8 +39,8 @@ from celery import Celery
 from datetime import timedelta
 
 from Config.Config import G_CONFIG
+from RestApi.Models import db, app, CRUD, Users
 
-app = Flask(__name__)
 app.config['SECRET_KEY'] = 'super-secret'
 app.config['VERSION'] = 1
 app.config['PROPAGATE_EXCEPTIONS'] = True
@@ -66,12 +66,12 @@ celery.conf.update(app.config)
 
 
 from RestApi.Auth import authenticate, identity, jwt_request_handler, jwt_payload_handler
-from RestApi.TmResource import TmResource, TmBatchQueryResource, TmImportResource, TmExportResource, TmExportFileResource, \
-                                TmGenerateResource, TmMaintainResource, TmPosTagResource, TmCleanResource, \
-                                TmStatsResource, TmUsageStatsResource
+#from RestApi.TmResource import TmResource, TmBatchQueryResource, TmImportResource, TmExportResource, TmExportFileResource, \
+#                                TmGenerateResource, TmMaintainResource, TmPosTagResource, TmCleanResource, \
+#                                TmStatsResource, TmUsageStatsResource
 from RestApi.UsersResource import UsersResource, UserScopesResource
-from RestApi.JobsResource import JobsResource
-from RestApi.AdminUi.AdminUi import admin_ui
+#from RestApi.JobsResource import JobsResource
+#from RestApi.AdminUi.AdminUi import admin_ui
 from RestApi.SettingsResource import SettingsResource
 from RestApi.TokenResource import TokenResource
 from RestApi.TagsResource import TagsResource
@@ -82,19 +82,19 @@ api_prefix = "/api/v{}".format(app.config['VERSION'])
 api.add_resource(TokenResource, api_prefix + '/token')
 # TM endpoint (query, export and import)
 tms_prefix = api_prefix + '/tm'
-api.add_resource(TmResource, tms_prefix)
-api.add_resource(TmBatchQueryResource, tms_prefix + '/query_batch')
-api.add_resource(TmImportResource, tms_prefix + '/import')
-api.add_resource(TmExportResource, tms_prefix + '/export')
-api.add_resource(TmExportFileResource, tms_prefix + '/export/file',
-                                      tms_prefix + '/export/file/<string:export_id>')
+#api.add_resource(TmResource, tms_prefix)
+#api.add_resource(TmBatchQueryResource, tms_prefix + '/query_batch')
+#api.add_resource(TmImportResource, tms_prefix + '/import')
+#api.add_resource(TmExportResource, tms_prefix + '/export')
+#api.add_resource(TmExportFileResource, tms_prefix + '/export/file',
+#                                      tms_prefix + '/export/file/<string:export_id>')
 
-api.add_resource(TmGenerateResource, tms_prefix + '/generate')
-api.add_resource(TmPosTagResource, tms_prefix + '/pos')
-api.add_resource(TmMaintainResource, tms_prefix + '/maintain')
-api.add_resource(TmCleanResource, tms_prefix + '/clean')
-api.add_resource(TmStatsResource, tms_prefix + '/stats')
-api.add_resource(TmUsageStatsResource, tms_prefix + '/stats/usage')
+#api.add_resource(TmGenerateResource, tms_prefix + '/generate')
+#api.add_resource(TmPosTagResource, tms_prefix + '/pos')
+#api.add_resource(TmMaintainResource, tms_prefix + '/maintain')
+#api.add_resource(TmCleanResource, tms_prefix + '/clean')
+#api.add_resource(TmStatsResource, tms_prefix + '/stats')
+#api.add_resource(TmUsageStatsResource, tms_prefix + '/stats/usage')
 
 # User management endpoint
 api.add_resource(UsersResource, api_prefix + '/users',
@@ -102,7 +102,7 @@ api.add_resource(UsersResource, api_prefix + '/users',
 api.add_resource(UserScopesResource, api_prefix + '/users/<string:username>/scopes')
 
 # Jobs management endpoint
-api.add_resource(JobsResource, api_prefix + '/jobs', api_prefix + '/jobs/<string:job_id>')
+#api.add_resource(JobsResource, api_prefix + '/jobs', api_prefix + '/jobs/<string:job_id>')
 
 # Settings
 api.add_resource(SettingsResource, api_prefix + '/settings')
@@ -143,7 +143,7 @@ jwt.jwt_payload_handler(jwt_payload_handler)
 # jwt.request_handler(jwt_request_handler)
 
 # Admin UI
-app.register_blueprint(admin_ui)
+#app.register_blueprint(admin_ui)
 
 if __name__ == '__main__':
     print(os.getcwd())
@@ -152,5 +152,15 @@ if __name__ == '__main__':
     app.logger.addHandler(stream_handler)
     # fix gives access to the gunicorn error log facility
     app.logger.handlers.extend(logging.getLogger("gunicorn.error").handlers)
+    # db.init_app(app)
+    with app.app_context():
+    # Extensions like Flask-SQLAlchemy now know what the "current" app
+    # is while within this block. Therefore, you can now run........
+        db.create_all()
+
+        # Insert initial admin user
+        if not Users.query.count():
+            admin = Users(Users.ADMIN, password=Users.ADMIN, role=Users.ADMIN)
+            CRUD.add(admin)
     app.run(debug=True)
 

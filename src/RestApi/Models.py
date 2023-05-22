@@ -254,13 +254,3 @@ class Tags(db.Model):
        if tag: tag_ids.append(tag.id)
      return Tags.has_public(tag_ids)
 
-
-try:
-  db.create_all()
-except Exception as e:
-  print(e)
-
-# Insert initial admin user
-if not Users.query.count():
-  admin = Users(Users.ADMIN, password=Users.ADMIN, role=Users.ADMIN)
-  CRUD.add(admin)

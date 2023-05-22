@@ -33,7 +33,7 @@ import datetime
 import json
 import logging
 
-from celery import task
+from celery import shared_task
 
 from TMDbApi.TMDbApi import TMDbApi
 from TMDbApi.TMUtils import TMUtils
@@ -377,7 +377,7 @@ class TmResource(Resource):
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='delete', filter=filters, slang=args.slang, tlang=args.tlang, duplicates_only=args.duplicates_only)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def delete_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Delete')
     return {'status': 'Task completed!'}
@@ -604,7 +604,7 @@ class TmImportResource(TmResource):
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='import', file=args.full_path, domain=tag_ids, lang_pairs=lang_pairs)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
-  @task(bind=True)
+  shared_task(bind=True)
   def import_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Import')
     return {'status': 'Task completed!'}
@@ -723,7 +723,7 @@ class TmExportResource(TmResource):
     # os.remove(tmpfile)
     # return response
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def export_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Export')
     return {'status': 'Task completed!'}
@@ -832,7 +832,7 @@ class TmGenerateResource(TmResource):
                           domain=args.tag)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def generate_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Generate')
     return {'status': 'Task completed!'}
@@ -893,7 +893,7 @@ class TmPosTagResource(TmResource):
     args = parser.parse_args()
     return args
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def pos_tag_task(self):
     SparkTaskDispatcher().run(self.request.id, 'PosTag')
     return {'status': 'Task completed!'}
@@ -925,7 +925,7 @@ class TmMaintainResource(TmResource):
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='maintain', filter=filters, slang=args.slang, tlang=args.tlang)
     return {"job_id": task.id, "message": "Job submitted successfully "}
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def maintain_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Maintain')
     return {'status': 'Task completed!'}
@@ -958,7 +958,7 @@ class TmCleanResource(TmResource):
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='clean',  filter=filters, slang=args.slang, tlang=args.tlang)
     return {"job_id": task.id, "message": "Job submitted successfully "}
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def clean_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Clean')
     return {'status': 'Task completed!'}

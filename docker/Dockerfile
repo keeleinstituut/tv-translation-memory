@@ -38,13 +38,13 @@ RUN apt-get install -y supervisor
 # Install Python packages
 
 RUN pip3 install flask flask_restful flask_principal flask_jwt 
-RUN pip3 install flower flask_sqlalchemy langid networkx babel 
-RUN pip3 install celery
+RUN pip3 install flower flask_sqlalchemy langid networkx babel
 RUN pip3 install iso639 couchdb pymongo redis lxml zipstream uwsgi requests requests-toolbelt  
 RUN pip3 install treetaggerwrapper nltk pyyaml editdistance translate future pyresttest 
 RUN pip3 install psycopg2-binary pexpect microsofttranslator
 RUN pip3 install celery CMRESHandler
 RUN pip3 install theano gunicorn
+RUN pip3 install opensearch-py opensearch-dsl
 
 # Download universtal POS tagset
 RUN python3 -m nltk.downloader universal_tagset stopwords punkt
@@ -85,7 +85,7 @@ RUN chmod -R oag+w $ELASTICTM_VOLUME/log/elastictm
 RUN cp conf/logrotate.conf /etc/logrotate.d/activatm
 
 # Setup supervisord
-copy supervisord.conf /etc/supervisor/conf.d/activatm.conf
+RUN cp conf/supervisord.conf /etc/supervisor/conf.d/activatm.conf
 
 RUN cp docker/wait-for-postgres.sh ~/
 # Create activatm user (Celery is run under it)
@@ -101,4 +101,5 @@ RUN chmod +x rundocs.sh
 CMD ["./run.sh"]
 CMD ["./rundocs.sh"]
 EXPOSE 3050
+EXPOSE 5000
 VOLUME $ELASTICTM_VOLUME
