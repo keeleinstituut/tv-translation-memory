@@ -32,7 +32,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@localhost/activatm?client_encoding=utf8'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@postgres/activatm?client_encoding=utf8'
 db = SQLAlchemy(app)
 
 
