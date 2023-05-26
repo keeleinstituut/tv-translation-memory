@@ -15,7 +15,7 @@ services:
       - tv-network
     volumes:
        - postgres:/data/postgres
-       - ./pgsql/1_schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
+       - ./docker/pgsql/1_schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
     restart: unless-stopped
 
   redis:
@@ -28,7 +28,7 @@ services:
 
   nginx:
     container_name: tv_web
-    build: ./nginx
+    build: ./docker/nginx
     environment:
       - NGINX_HOST=localhost
       - NGINX_PORT=80

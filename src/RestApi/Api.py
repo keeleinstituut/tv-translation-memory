@@ -131,7 +131,7 @@ api.add_resource(TagsResource, api_prefix + '/tags',
  @apiError {String} 401 Invalid credentials
 
  @apiExample {curl} Example usage:
- curl -H "Content-Type: application/json" -XPOST http://127.0.0.1:5000/api/v1/auth -d
+ curl -H "Content-Type: application/json" -XPOST http://127.0.0.1:/api/v1/auth -d
  '{ "username": "user1", "password": "abcxy"}'
 """
 app.config['JWT_AUTH_URL_RULE'] = api_prefix + '/auth'
