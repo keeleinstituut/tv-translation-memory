@@ -13,9 +13,9 @@ RUN apt-get install -y python3-pip && pip3 install virtualenv
 # Install packages
 RUN apt-get install -y libxml2-dev libxslt1-dev python3-dev python3-bs4 libcurl4-openssl-dev apt-transport-https zip libtercpp-dev
 RUN apt-get install -y libblas-dev liblapack-dev libatlas-base-dev gfortran libssl-dev
-RUN apt-get install -y python3-numpy python3-scipy python3-matplotlib python3-pandas python3-sympy python3-nose
+RUN apt-get install -y python3-numpy python3-scipy python3-matplotlib python3-pandas python3-sympy python3-nose python3-dev
 RUN pip3 install ipython
-RUN apt-get update && apt-get install -y --no-install-recommends apt-utils software-properties-common
+RUN apt-get update && apt-get install -y --no-install-recommends apt-utils software-properties-common iputils-ping
 # Install Java
 RUN apt-get install -y default-jre default-jdk
 
@@ -59,31 +59,33 @@ ENV ELASTICTM_VOLUME /elastictm
 # Clone the conf files into the docker container
 RUN echo " Cloning----"
 RUN echo " ==== ...."
-# RUN git clone --recursive -b feature/#216/setup-nectm https://github.com/keeleinstituut/tv-translation-memory.git $ELASTICTM
-RUN cd ../
-ENV DIR pwd
-RUN echo $DIR
 COPY . $ELASTICTM
-RUN file="$(ls -1 $ELASTICTM)" && echo $file
 WORKDIR $ELASTICTM
 RUN cd $ELASTICTM
+
 #################################################################
 
-RUN ( cd tools/pytercpp && git clone https://github.com/cservan/tercpp.git )
+RUN cd tools/pytercpp &&  \
+    git clone https://github.com/cservan/tercpp.git
 # Copy universal tag map to NTLK data directory
 RUN cp tools/universal-pos-tags-master/*-treetagger-pg.map /usr/share/nltk_data/taggers/universal_tagset/
 
+
 # Build & install pytercpp
-RUN ( cd tools/pytercpp; python3 setup.py build install )
+RUN cd tools/pytercpp && \
+    python3 setup.py build install
 
 # Build & generate pragmatic-segmenter
-RUN ( cd tools/pragmatic_segmenter-master; gem install pragmatic_segmenter )
+RUN cd tools/pragmatic_segmenter-master && \
+    gem install pragmatic_segmenter
 
 # Generate API documentation
-RUN ( cd src/RestApi/; node --harmony `which apidoc` -i . -o ../../doc )
+RUN cd src/RestApi/ && \
+    node --harmony `which apidoc` -i . -o ../../doc
 
 # Setup UWSGI
-RUN mkdir -p $ELASTICTM_VOLUME/log/elastictm && touch $ELASTICTM_VOLUME/log/elastictm/gunicorn.log $ELASTICTM_VOLUME/log/elastictm/celery-worker.log
+RUN mkdir -p $ELASTICTM_VOLUME/log/elastictm && \
+    touch $ELASTICTM_VOLUME/log/elastictm/gunicorn.log $ELASTICTM_VOLUME/log/elastictm/celery-worker.log
 RUN chmod -R oag+w $ELASTICTM_VOLUME/log/elastictm
 
 #################### Copy service configurations ############
@@ -97,17 +99,20 @@ RUN cp docker/wait-for-postgres.sh ~/
 RUN useradd -ms /bin/bash activatm
 
 RUN npm install http-server -g
-RUN echo  "#! /bin/bash\n supervisord;"  > run.sh
-RUN echo  "#! /bin/bash\n http-server /opt/elastictm/doc --port 3050;"  > rundocs.sh
-RUN echo  "#! /bin/bash\n python3 /opt/elastictm/src/RestApi/Api.py;"  > runapi.sh
+RUN echo  "#! /bin/bash\n supervisord"  > run.sh
+RUN echo  "#! /bin/bash\n nohup bash -c \"http-server /opt/elastictm/doc --port 3050 &\""  > rundocs.sh
+RUN echo  "#! /bin/bash\n python3 /opt/elastictm/src/RestApi/Api.py"  > runapi.sh
 
-RUN chmod +x run.sh
-RUN chmod +x rundocs.sh
-RUN chmod +x runapi.sh
+RUN mkdir -p $ELASTICTM/log
+
 # Run Supervisor - responsible to start up & keep alive all services:
-CMD ["./run.sh"]
-CMD ["./rundocs.sh"]
-CMD ["./runapi.sh"]
+RUN chmod +x run.sh && \
+    chmod +x rundocs.sh && \
+    chmod +x runapi.sh && \
+    chmod 777 $ELASTICTM/log
+
+ENTRYPOINT ["./run.sh"]
+
 EXPOSE 3050
 EXPOSE 5000
 VOLUME $ELASTICTM_VOLUME
