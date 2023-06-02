@@ -65,7 +65,7 @@ class TMDbApi:
   DIRTY_THRESHOLD = G_CONFIG.get_dirty_threshold()
 
   def __init__(self, map_engine = 'opensearch', **kwargs):
-    self.ml_index = TMMonoLing(timeout=30, max_retries=3, retry_on_timeout=True)
+    self.ml_index = TMMonoLing()
     self.seg_map = TMMap.create(map_engine)
     self.timer = TMTimer("TMDbApi")
     self.scan_size = 0

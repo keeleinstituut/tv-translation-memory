@@ -30,7 +30,6 @@ import logging
 import datetime
 import uuid
 import json
-from opensearchpy import OpenSearch, Search, helpers
 
 from TMDbApi.TMTranslationUnit import TMTranslationUnit
 from TMDbApi.TMUtils import TMUtils
@@ -38,6 +37,7 @@ from TMDbApi.TMDbQuery import TMDbQuery
 from TMPosTagger.TMTokenizer import TMTokenizer
 from TMPreprocessor.TMRegExpPreprocessor import TMRegExpPreprocessor
 from TMMatching.TMRegxMatch import TMRegexMatch
+from helpers.OpenSearchHelper import OpenSearchHelper
 
 
 # API class for translation memories DB
@@ -45,9 +45,9 @@ class TMMonoLing:
   DOC_TYPE = 'tm'
 
   def __init__(self, **kwargs):
-    self.es = OpenSearch(kwargs = kwargs)
+    self.es = OpenSearchHelper()
     # Put default index template
-    self.es.indices.put_template(name='tm_template', body = self._index_template())
+    self.es.indices_put_template(name='tm_template', body = self._index_template())
     self.refresh()
 
     #self.preprocessors = dict()
@@ -62,7 +62,7 @@ class TMMonoLing:
     s_result = self.es.index(index=index,
                              doc_type=self.DOC_TYPE,
                              id=id,
-                             body = self._segment2doc(segment, ftype))
+                             body=self._segment2doc(segment, ftype))
     return id
 
   # Bulk segment addition
@@ -75,7 +75,7 @@ class TMMonoLing:
     index = TMUtils.lang2es_index(lang)
     if not self.index_exists(index): return
     # Query source ES for the text
-    query = TMDbQuery(es=self.es,
+    query = TMDbQuery(es=self.es.global_es,
                       index = index,
                       q=qstring,
                       filter=filter)
@@ -88,7 +88,7 @@ class TMMonoLing:
     index = TMUtils.lang2es_index(lang)
     if not self.index_exists(index): return
     # Query source ES for the text
-    query = TMDbQuery(es=self.es,
+    query = TMDbQuery(es=self.es.global_es,
                           index=index,
                           q=q_list,
                           filter=filter,
@@ -124,7 +124,7 @@ class TMMonoLing:
     index = TMUtils.lang2es_index(lang)
     if not self.index_exists(index): return
 
-    query = TMDbQuery(es=self.es, index = index, filter=filter)
+    query = TMDbQuery(es=self.es.global_es, index = index, filter=filter)
     for hit in query.scan():
       # Build segment by querying map and target index
       yield hit
@@ -134,7 +134,7 @@ class TMMonoLing:
     index = TMUtils.lang2es_index(pivot_lang)
     if not self.index_exists(index): return
 
-    search = Search(using=self.es, index=index)
+    search = self.es.search(index=index)
     for lang in langs:
       search = search.query('match', target_language=lang)
     for result in search.scan():
@@ -151,7 +151,7 @@ class TMMonoLing:
                 } for id in ids]
     # Bulk delete
     try:
-      status = helpers.bulk(self.es, actions)
+      status = self.es.bulk(actions)
     except Exception as e:
       logging.warning(e)
       return str(e)
@@ -160,10 +160,10 @@ class TMMonoLing:
   # Should be called after modifying the index
   def refresh(self):
     #self.indexes = self.es.indices.get_aliases() #not supported anymore
-    self.indexes = self.es.indices.get_alias("*")
+    self.indexes = self.es.indices_get_alias("*")
 
   def index_exists(self, index):
-    return self.es.indices.exists(index)
+    return self.es.indices_exists(index)
 
   def get_langs(self):
     return [TMUtils.es_index2lang(l) for l in self.indexes if re.search('^tm_\w{2}$', l)]
@@ -180,14 +180,13 @@ class TMMonoLing:
       index = TMUtils.lang2es_index(getattr(segment, ftype + '_language'))
       action = {'_id': id,
                 '_index' : index,
-                '_type' : self.DOC_TYPE,
                 '_op_type': op_type,
                 '_source' : f_action(segment, ftype) #self._segment2doc(segment, ftype)
                 }
       actions.append(action)
     # Bulk insert
     logging.info("Bulk upsert: {}".format(actions))
-    s_result = helpers.bulk(self.es, actions)
+    s_result = self.es.bulk(actions)
     self.refresh() # refresh list of indexes (could have been created during insert)
     return s_result
 
@@ -209,12 +208,14 @@ class TMMonoLing:
     upsert_body = {'upsert': doc, # insert doc as is if it doesn't exist yet
             # If doc exists, then execute this painless scipt:
             # - add target language to the list  and filter unique values by converting to set
-            'script' : 'ctx._source.target_language.add(params.language); ctx._source.target_language = ctx._source.target_language.stream().distinct().filter(Objects::nonNull).collect(Collectors.toList()); \
-             if (params.pos != null) { ctx._source.pos = params.pos; }',
-#             ',
-            # parameters to the script
-            'params' : { 'language' :  doc['target_language'],
-                         'pos' : doc['pos']}
+            'script' : {
+                'source': 'ctx._source.target_language.add(params.language); ctx._source.target_language = ctx._source.target_language.stream().distinct().filter(Objects::nonNull).collect(Collectors.toList()); \
+                 if (params.pos != null) { ctx._source.pos = params.pos; }',
+    #             ',
+                # parameters to the script
+                'params' : { 'language' :  doc['target_language'],
+                             'pos' : doc['pos']}
+            }
     }
     #return {'doc': doc, 'doc_as_upsert' : True }
     return upsert_body
@@ -248,19 +249,21 @@ class TMMonoLing:
 
   def _index_template(self):
     template =  {
-      "template": "tm_*",
-      "settings": {
-        "analysis": {
-          "analyzer": {
-            "folding": {
-              "tokenizer": "standard",
-              "filter": ["lowercase", "asciifolding"]
+      "index_patterns": [
+        "tm_*"
+      ],
+      "template": {
+        "settings": {
+          "analysis": {
+            "analyzer": {
+              "folding": {
+                "tokenizer": "standard",
+                "filter": ["lowercase", "asciifolding"]
+              }
             }
           }
-        }
-      },
-      "mappings" : {
-        self.DOC_TYPE: {
+        },
+        "mappings" : {
           "properties": {
             # Field text should analyzed, text.raw shouldn't
             "text": {

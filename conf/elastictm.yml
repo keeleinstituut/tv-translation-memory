@@ -8,6 +8,10 @@ spark:
   master_path: local[8]
   segments_per_task: 10000
 
+opensearch:
+  host: opensearch-node1
+  port: 9200
+
 query:
     #Penalize match if segment doesn't belong to requested domain or it is a dirty segment
     p_domain: 5

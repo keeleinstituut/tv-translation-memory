@@ -162,5 +162,6 @@ if __name__ == '__main__':
         if not Users.query.count():
             admin = Users(Users.ADMIN, password=Users.ADMIN, role=Users.ADMIN)
             CRUD.add(admin)
+    # app.run(host='0.0.0.0', debug=True, port=5002) #For local debugging
     app.run(host='0.0.0.0', debug=True)
 

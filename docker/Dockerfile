@@ -43,8 +43,19 @@ RUN pip3 install iso639 couchdb pymongo redis lxml zipstream uwsgi requests requ
 RUN pip3 install treetaggerwrapper nltk pyyaml editdistance translate future pyresttest 
 RUN pip3 install psycopg2-binary pexpect microsofttranslator
 RUN pip3 install celery CMRESHandler
-RUN pip3 install theano gunicorn
+RUN pip3 install theano gunicorn chardet
 RUN pip3 install opensearch-py opensearch-dsl
+
+RUN apt-get install -y wget
+RUN cd /tmp && \
+    wget http://www.phontron.com/kytea/download/kytea-0.4.7.tar.gz && \
+    tar xzf kytea-0.4.7.tar.gz && \
+    cd /tmp/kytea-0.4.7/ && \
+    # ./configure && \ # This is for x86
+    ./configure --build=aarch64-unknown-linux-gnu && \
+    make && \
+    make install && \
+    pip3 install kytea
 
 # Download universtal POS tagset
 RUN python3 -m nltk.downloader universal_tagset stopwords punkt
@@ -62,6 +73,10 @@ RUN echo " ==== ...."
 COPY . $ELASTICTM
 WORKDIR $ELASTICTM
 RUN cd $ELASTICTM
+
+# Uninstall new elasticsearch
+RUN pip uninstall --yes elasticsearch && \
+    pip3 install elasticsearch==7.13.4
 
 #################################################################
 
@@ -100,7 +115,7 @@ RUN useradd -ms /bin/bash activatm
 
 RUN npm install http-server -g
 RUN echo  "#! /bin/bash\n supervisord"  > run.sh
-RUN echo  "#! /bin/bash\n nohup bash -c \"http-server /opt/elastictm/doc --port 3050 &\""  > rundocs.sh
+RUN echo  "#! /bin/bash\n http-server /opt/elastictm/doc --port 3050"  > rundocs.sh
 RUN echo  "#! /bin/bash\n python3 /opt/elastictm/src/RestApi/Api.py"  > runapi.sh
 
 RUN mkdir -p $ELASTICTM/log

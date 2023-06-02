@@ -24,7 +24,9 @@
 from cmreslogging.handlers import CMRESHandler
 from Config.Config import G_CONFIG
 import logging
-from opensearchpy import OpenSearch, MultiSearch, Search
+
+from helpers.OpenSearchHelper import OpenSearchHelper
+
 # Forcing modification of a private field to avoid logging redundant data
 CMRESHandler._CMRESHandler__LOGGING_FILTER_FIELDS += ['args', 'exc_info', 'exc_text', 'filename', 'funcName',
                                                                    'levelname',
@@ -46,11 +48,11 @@ class TMQueryLogger:
                            auth_type=CMRESHandler.AuthType.NO_AUTH,
                            es_index_name=self.ES_INDEX_NAME,
                            index_name_frequency=CMRESHandler.IndexNameFrequency.MONTHLY)
-    self.es = OpenSearch(hosts=hosts)
+    self.es = OpenSearchHelper()
     self.log = logging.getLogger(self.LOGGER_NAME)
     self.log.setLevel(logging.INFO)
     self.log.addHandler(self.handler)
-    self.es.indices.put_template(name='qlogger_template', body=self._index_template())
+    self.es.indices_put_template(name='qlogger_template', body=self._index_template())
  
 
   def log_query(self, username, ip, qparams, results):
@@ -86,7 +88,7 @@ class TMQueryLogger:
   #  ...
   # }
   def stats(self):
-    search = Search(using=self.es, index="{}*".format(self.ES_INDEX_NAME))
+    search = self.es.search(index="{}*".format(self.ES_INDEX_NAME))
     search.aggs.bucket('users', 'terms', field='username', size=99999)\
       .bucket('usage', 'date_histogram', field='timestamp', interval="1M", format="MM/YY") \
       .bucket('mt', 'terms', field='mt', size=99999)
@@ -113,16 +115,20 @@ class TMQueryLogger:
 
   def _index_template(self):
      template =  {
-       "template": self.ES_INDEX_NAME + "*",
-       "mappings" : {
-         "python_log": {
-           "properties": {
-             "username": {
-              "type": "keyword"
+         "index_patterns": [
+             self.ES_INDEX_NAME + "*"
+         ],
+       "template": {
+           "mappings" : {
+             "python_log": {
+               "properties": {
+                 "username": {
+                  "type": "keyword"
+                }
+              }
             }
           }
-        }
-      } 
+       }
      }
      return template
 

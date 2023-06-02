@@ -33,6 +33,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@postgres/activatm?client_encoding=utf8'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@localhost/activatm?client_encoding=utf8' #For local debugging
 db = SQLAlchemy(app)
 
 
@@ -221,6 +222,7 @@ class Tags(db.Model):
    @staticmethod
    def get_add_tags(tags):
      for tag_id in tags:
+       with app.app_context():
         if not Tags.query.get(tag_id):
           tag = Tags(tag_id, name=tag_id, type="unspecified")
           CRUD.add(tag)

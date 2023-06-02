@@ -25,23 +25,24 @@ import uuid
 import re
 import logging
 import datetime
-from opensearchpy import OpenSearch, Search, MultiSearch, Q, helpers
 import networkx
 
 from TMDbApi.TMMap.TMMap import TMMap
 from TMDbApi.TMUtils import TMUtils, TMTimer
 from TMDbApi.TMDbQuery import TMDbQuery
 
+from helpers.OpenSearchHelper import OpenSearchHelper
+
 
 class TMMapES(TMMap):
   UPSERT_SCRIPT='upsert_segment'
 
   def __init__(self):
-    self.es = OpenSearch(timeout=30, max_retries=3, retry_on_timeout=True)
+    self.es = OpenSearchHelper()
     self.DOC_TYPE = 'id_map'
     self.refresh_lang_graph()
-    self.es.indices.put_template(name='map_template', body=self._index_template())
-    self.es.put_script(TMMapES.UPSERT_SCRIPT, body=self._upsert_script())
+    self.es.indices_put_template(name='map_template', body=self._index_template())
+    self.es.put_script(index=TMMapES.UPSERT_SCRIPT, body=self._upsert_script())
     self.scan_size = 9999999
 
     self.timer = TMTimer("TMMapES")
@@ -83,7 +84,7 @@ class TMMapES(TMMap):
     logging.info("Bulk upsert (map): {}".format(actions))
     
     self.timer.start("add_segment:es_index")
-    s_result = helpers.bulk(self.es, actions)
+    s_result = self.es.bulk(actions)
     self.timer.stop("add_segment:es_index")
     return s_result
 
@@ -118,7 +119,7 @@ class TMMapES(TMMap):
   # multi-get (bidirectional)
   def mget(self, id_langs, return_multiple=False):
     if not id_langs: return []
-    msearch = MultiSearch(using=self.es)
+    msearch = self.es.multi_search()
     search_swap = []
     for source_id,source_lang,target_lang in id_langs:
       search,swap = self._create_search(source_id,source_lang,target_lang)
@@ -184,7 +185,7 @@ class TMMapES(TMMap):
       actions.append(action)
     # Bulk operation (update/delete)
     try:
-      status = helpers.bulk(self.es, actions)
+      status = self.es.bulk(actions)
       logging.info("Map Delete status: {}".format(status))
 
     except Exception as e:
@@ -201,7 +202,7 @@ class TMMapES(TMMap):
     MEXIST_BATCH_SIZE = 10
     results = []
     for i in range(0, len(src_ids), MEXIST_BATCH_SIZE):
-      msearch = MultiSearch(using=self.es)
+      msearch = self.es.multi_search()
       for source_id in src_ids[i:i+MEXIST_BATCH_SIZE]:
         search = self._create_search_mindexes(source_id, src_lang, tgt_langs)
         if search:
@@ -220,7 +221,7 @@ class TMMapES(TMMap):
   def count(self, langs):
     m_index,swap = self._get_index(langs[0], langs[1])
     if not m_index: return []
-    search =  Search(using=self.es, index=m_index).params(search_type="count")
+    search = self.es.search(index=m_index).params(search_type="count")
     res = search.execute()
     return res.to_dict()['hits']['total']
 
@@ -234,16 +235,17 @@ class TMMapES(TMMap):
 
   # Count number of segments for multiple language pairs
   def mcount(self):
-    search = Search(using=self.es, index="{}*".format(TMUtils.MAP_PREFIX))
+    search = self.es.search(index="{}*".format(TMUtils.MAP_PREFIX))
     search.aggs.bucket('values', 'terms', field='_index', size=999999)
     res = search.execute()
     if not hasattr(res, 'aggregations') or 'values' not in res.aggregations: return dict()
     return dict([(re.sub("^{}".format(TMUtils.MAP_PREFIX), "", f.key),f.doc_count) for f in res.aggregations['values'].buckets])
 
   def mcount_buckets(self, buckets):
-    ms = MultiSearch(using=self.es)
+    self.es.indices_put_mapping(index="{}*".format(TMUtils.MAP_PREFIX), body=self._update_mapping_script())
+    ms = self.es.multi_search()
     for bucket_name in buckets:
-      search = Search(using=self.es, index="{}*".format(TMUtils.MAP_PREFIX))
+      search = self.es.search(index="{}*".format(TMUtils.MAP_PREFIX))
       search.aggs.bucket('indexes', 'terms', field='_index', size=999999).bucket('values', 'terms', field=bucket_name, size=999999)
       ms = ms.add(search)
 
@@ -291,7 +293,7 @@ class TMMapES(TMMap):
 
   # Should be called after modifying the index
   def refresh(self):
-    self.indexes = self.es.indices.get_alias("*")
+    self.indexes = self.es.indices_get_alias("*")
 
   def refresh_lang_graph(self):
     self.lang_graph = self.get_lang_graph()
@@ -307,7 +309,7 @@ class TMMapES(TMMap):
     m_index,swap = self._get_index(source_lang, target_lang)
     if not m_index: return None,None
 
-    query = TMDbQuery(es=self.es, index=m_index, filter=filter)
+    query = TMDbQuery(es=self.es.global_es, index=m_index, filter=filter)
     return query,swap
 
   def _create_search(self, source_id, source_lang, target_lang):
@@ -315,15 +317,15 @@ class TMMapES(TMMap):
     if not m_index: return None,None
     qfield = "source_id" if not swap else "target_id"
 
-    search =  Search(using=self.es, index=m_index)
-    search.query = Q('term', **{qfield: source_id})
+    search = self.es.search(index=m_index)
+    search.query = self.es.q(name='term', **{qfield: source_id})
     return search,swap
 
   def _create_search_mindexes(self, source_id, source_lang, target_langs):
     m_indexes = [self._get_index(source_lang, tgt_lang)[0] for tgt_lang in target_langs] # take only m_index, swap is not interested
-    search = Search(using=self.es, index=m_indexes)
+    search = self.es.search(index=m_indexes)
     # FIXME: search only source_id or target_id according to index direction,  otherwise it might return results from incorect language (having the same id due to exact the same text)
-    search.query = Q('term', source_id=source_id) | Q('term', target_id=source_id)
+    search.query = self.es.q(name='term', source_id=source_id) | self.es.q(name='term', target_id=source_id)
     return search
 
   def _match_pattern(self, text, pattern):
@@ -335,16 +337,16 @@ class TMMapES(TMMap):
     m_index = TMUtils.es_index2mapdb(TMUtils.lang2es_index(source_lang),
                                      TMUtils.lang2es_index(target_lang))
 
-    if self.es.indices.exists(index=m_index): return m_index,False
+    if self.es.indices_exists(index=m_index): return m_index,False
     # Try reverse index
     r_index = TMUtils.es_index2mapdb(TMUtils.lang2es_index(target_lang),
                                      TMUtils.lang2es_index(source_lang))
     # Found reverse index - use it
-    if self.es.indices.exists(r_index): return r_index,True
+    if self.es.indices_exists(r_index): return r_index,True
     if not create_missing: return None,None
     # Neither direct, nor reverse index exist - create a direct one
     try:
-      self.es.indices.create(m_index)
+      self.es.indices_create(m_index)
     except:
       pass
     self.refresh_lang_graph()
@@ -418,12 +420,14 @@ class TMMapES(TMMap):
     }
 
     template =  {
-      "template": "map_*",
-      "mappings": {
-        self.DOC_TYPE: {
-          "properties": props
+      "index_patterns": [
+        "map_*"
+      ],
+      "template": {
+        "mappings": {
+            "properties": props
+          }
         }
-      }
     }
     return template
 
@@ -452,5 +456,18 @@ class TMMapES(TMMap):
     #return {'script': { 'inline': script, 'lang': 'painless' } }
     return {'script': { 'source': script, 'lang': 'painless' } }
 
-
-
+  def _update_mapping_script(self):
+    return {
+      "properties": {
+        "domain": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          },
+          "fielddata": True
+        }
+      }
+    }

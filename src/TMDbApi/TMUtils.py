@@ -25,6 +25,8 @@ import logging
 import re
 from langid.langid import LanguageIdentifier, model
 
+from helpers.OpenSearchHelper import OpenSearchHelper
+
 
 class TMUtils:
   # create lang identified with normalized probabilities
@@ -84,8 +86,9 @@ class TMUtils:
 
   @staticmethod
   def clean_empty_domains(es):
-    from opensearchpy import Search
-    search = Search(using=es, index="map_*").query("match", domain="")[:1000]
+    from helpers.OpenSearchHelper import OpenSearchHelper
+    es = OpenSearchHelper()
+    search = es.search(index="map_*").query("match", domain="")[:1000]
     for hit in search:
       domains = [d for d in hit.domain if d]
       hit_dict = hit.to_dict()
@@ -120,6 +123,5 @@ class TMTimer:
 
 
 if __name__ == "__main__":
-  from opensearchpy import OpenSearch
-  es = OpenSearch()
-  TMUtils.clean_empty_domains(es)
+  es = OpenSearchHelper()
+  TMUtils.clean_empty_domains(es.global_es)
