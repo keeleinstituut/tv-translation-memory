@@ -12,6 +12,15 @@ opensearch:
   host: opensearch-node1
   port: 9200
 
+keycloak:
+  grant_type: password
+  client_id: web
+  client_secret: JIczLfBIZzoGM6Mmcnnp0tfpmUkDEc76
+  url: http://keycloak:8080/ # http://127.0.0.1:8180/
+  realm: master
+  admin_user: admin
+  admin_uuid: 8b41f2bf-e199-4358-9a78-8fe1dc8a2762
+
 query:
     #Penalize match if segment doesn't belong to requested domain or it is a dirty segment
     p_domain: 5

@@ -24,14 +24,11 @@
 from flask_restful import Resource, abort, inputs
 from flask_restful.reqparse import RequestParser
 
-from flask_jwt import current_identity
-
 from RestApi.Models import Users, UserSettings, CRUD
-from Auth import admin_permission, user_permission, PermissionChecker
+from Auth import permission, current_identity
 from TMPreprocessor.TMRegExpPreprocessor import TMRegExpPreprocessor
 
 class SettingsResource(Resource):
-  decorators = [PermissionChecker(user_permission)]
   regex_pp = TMRegExpPreprocessor()
 
   """
@@ -44,15 +41,16 @@ class SettingsResource(Resource):
 
 
   """
+  @permission("user")
   def get(self):
-    user = Users.query.get(current_identity.id)
+    user = Users.query.get(current_identity().id)
     if user:
       out = {'settings' : []}
       if user.settings:
         out['settings'] = user.settings[0].regex
       return out
     else:
-      abort(500, mesage="User {} doesn't exist".format(current_identity.id))
+      abort(500, mesage="User {} doesn't exist".format(current_identity().id))
 
 
   """
@@ -63,17 +61,18 @@ class SettingsResource(Resource):
   @apiUse Header
   @apiPermission user
   """
+  @permission("user")
   def put(self):
     args = self._put_reqparse()
-    user = Users.query.get(current_identity.id)
+    user = Users.query.get(current_identity().id)
     if not user:
-      abort(500, mesage="User {} doesn't exist".format(current_identity.id))
+      abort(500, mesage="User {} doesn't exist".format(current_identity().id))
 
     settings = user.settings
     if settings: settings = settings[0]
 
     if not settings:
-      settings = UserSettings(current_identity.id)
+      settings = UserSettings(current_identity().id)
       CRUD.add(settings)
     if args.regex and args.regex.lower() == 'none':
       settings.regex = ''

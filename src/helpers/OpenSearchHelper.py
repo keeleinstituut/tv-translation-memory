@@ -57,11 +57,11 @@ class OpenSearchHelper():
     def search(self, index):
         return Search(using=self.__es, index=index)
 
-    def multi_search(self):
-        return MultiSearch(using=self.__es)
+    def multi_search(self, index=None):
+        return MultiSearch(using=self.__es, index=index)
 
     def q(self, name, **params):
-        return Q(name, params)
+        return Q(name, **params)
 
     def put_script(self, index, body):
         return self.__es.put_script(id=index, body=body)

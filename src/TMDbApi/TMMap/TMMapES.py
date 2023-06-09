@@ -309,7 +309,7 @@ class TMMapES(TMMap):
     m_index,swap = self._get_index(source_lang, target_lang)
     if not m_index: return None,None
 
-    query = TMDbQuery(es=self.es.global_es, index=m_index, filter=filter)
+    query = TMDbQuery(es=self.es, index=m_index, filter=filter)
     return query,swap
 
   def _create_search(self, source_id, source_lang, target_lang):

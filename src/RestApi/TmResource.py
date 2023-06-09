@@ -54,14 +54,11 @@ from TMDbApi.TMExport import TMExport
 from TMOutputer.TMOutputerMoses import TMOutputerMoses
 from TMDbApi.TMQueryLogger import TMQueryLogger
 
-from Auth import admin_permission, user_permission, PermissionChecker, UserScopeChecker
+from Auth import UserScopeChecker, permission, current_identity, current_institution_id
 from RestApi.Models import Users, Tags
-
-from flask_jwt import current_identity
 
 # Search/update/delete segments
 class TmResource(Resource):
-  decorators = [PermissionChecker(user_permission)]
 
   db = TMDbApi('opensearch')
   job_api = ESJobApi()
@@ -137,6 +134,7 @@ class TmResource(Resource):
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
 
   """
+  @permission("user")
   def get(self):
     args = self._get_reqparse().parse_args()
     sl = self._detect_lang(args)
@@ -180,7 +178,8 @@ class TmResource(Resource):
                             min_match=args.min_match,
                             concordance=args.concordance,
                             aut_trans=args.aut_trans,
-                            exact_length=False)
+                            exact_length=False,
+                            institution_id=current_institution_id())
 
     for _q, results in zip(qlist, self.db.query(qparams)):
       moses_qout = _q.encode('utf-8')
@@ -219,7 +218,7 @@ class TmResource(Resource):
                         "tag": filtered_tags
         }
         # TODO: hide some fields for user?
-        if (current_identity.role != Users.ADMIN):
+        if (current_identity().role != Users.ADMIN):
           pass
         r.append(segment_json)
         count += 1
@@ -230,7 +229,7 @@ class TmResource(Resource):
     if penalty:
       for r in rlist: r['match'] -= penalty
     # Log query & its results:
-    self.qlogger.log_query(current_identity.id, request.remote_addr, qparams, rlist)
+    self.qlogger.log_query(current_identity().id, request.remote_addr, qparams, rlist)
 
     # Moses format output - either translation or original query
     if args.out == 'moses':
@@ -288,6 +287,7 @@ class TmResource(Resource):
    @apiParam {String} tag Translation unit tag.
    @apiParam {String} [file_name] File name (or source name)
   """
+  @permission("user")
   def post(self):
     args = self._post_reqparse().parse_args()
 
@@ -297,8 +297,6 @@ class TmResource(Resource):
     # Check tag existence
     self._validate_tag_ids(tag_ids)
 
-    if current_identity.role != Users.ADMIN and not Tags.has_specified(tag_ids):
-      abort(403, message="Tags should include at least one private or public tag")
     # Check user scope
     if not UserScopeChecker.check((args.slang, args.tlang), tag_ids, is_update=True):
       abort(403, message="No valid user permission scope found for given language pair, tag and operation")
@@ -315,7 +313,8 @@ class TmResource(Resource):
                          'file_name': args.file_name,
                          'tm_creation_date': now_str,
                          'tm_change_date': now_str,
-                         'username': current_identity.id })
+                         'username': current_identity().id,
+                         'institution_id': current_institution_id() })
     self.db.add_segments([segment]) #add_segment(segment) --> Change this line, because the function add_segment replace tag in TM
     return  {'message': 'Translation unit was added successfully'}
 
@@ -368,13 +367,13 @@ class TmResource(Resource):
     -X DELETE
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
     """
-  @admin_permission.require(http_exception=403)
+  @permission("admin")
   def delete(self):
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
     task = self.delete_task.apply_async()
-    self.job_api.init_job(job_id=task.id, username=current_identity.id, type='delete', filter=filters, slang=args.slang, tlang=args.tlang, duplicates_only=args.duplicates_only)
+    self.job_api.init_job(job_id=task.id, username=current_identity().id, type='delete', filter=filters, slang=args.slang, tlang=args.tlang, duplicates_only=args.duplicates_only)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
   @shared_task(bind=True)
@@ -499,7 +498,6 @@ class TmResource(Resource):
 
 
 class TmBatchQueryResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
 
   # Querying segment translation into the target language
   """
@@ -527,6 +525,7 @@ class TmBatchQueryResource(TmResource):
 
    @apiSuccess {String/Json} Translation units matching the query
   """
+  @permission("user")
   def get(self):
     args = self._get_reqparse().parse_args()
     #filters = self._args2filter(args)
@@ -557,7 +556,6 @@ class TmBatchQueryResource(TmResource):
     return parser
 
 class TmImportResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
 
   # Import
   """
@@ -579,12 +577,13 @@ class TmImportResource(TmResource):
      -F file=@data/test.zip -X PUT
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
    """
+  @permission("user")
   def put(self):
     args = self._put_reqparse()
     # Check tag existence
     tag_ids = args.tag
     self._validate_tag_ids(tag_ids)
-    if current_identity.role != Users.ADMIN and not Tags.has_specified(tag_ids):
+    if current_identity().role != Users.ADMIN and not Tags.has_specified(tag_ids):
       abort(403, message="Tags should include at least one private or public tag")
 
     lang_pairs = self._parse_lang_pairs(args.lang_pair)
@@ -601,7 +600,7 @@ class TmImportResource(TmResource):
 
     # Setup a job using Celery & ES
     task = self.import_task.apply_async()
-    self.job_api.init_job(job_id=task.id, username=current_identity.id, type='import', file=args.full_path, domain=tag_ids, lang_pairs=lang_pairs)
+    self.job_api.init_job(job_id=task.id, username=current_identity().id, type='import', file=args.full_path, domain=tag_ids, lang_pairs=lang_pairs)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
   shared_task(bind=True)
@@ -637,7 +636,6 @@ class TmImportResource(TmResource):
     return args
 
 class TmExportResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
 
   # Export
   """
@@ -657,8 +655,7 @@ class TmExportResource(TmResource):
    curl -XPOST "http://127.0.0.1:5000/api/v1/tm/export?slang=en&tlang=es&insert_date.from=20120122&tm_creation_date.to=20090915"
    -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU' -X GET
   """
-
-
+  @permission("user")
   def post(self):
     # print("USER PERM : {}".format(user_permission.can()))
     args = self._get_reqparse().parse_args()
@@ -666,7 +663,7 @@ class TmExportResource(TmResource):
     args.slang = args.slang.lower()
     args.tlang = args.tlang.lower()
 
-    if current_identity.role != Users.ADMIN and not Tags.has_specified(filters.get("domain", [])):
+    if current_identity().role != Users.ADMIN and not Tags.has_specified(filters.get("domain", [])):
       abort(403, message="Tags should include at least one private or public tag")
 
     if not UserScopeChecker.check((args.slang, args.tlang), filters.get("domain"), is_export=True):
@@ -679,7 +676,7 @@ class TmExportResource(TmResource):
       abort(403, mesage="Requested language pair doesn't exist. Try generating using pivot language")
 
     task = self.export_task.apply_async()
-    self.job_api.init_job(job_id=task.id, username=current_identity.id, type='export', filter=filters, slang=args.slang, tlang=args.tlang, limit=args.limit, duplicates_only=args.duplicates_only)
+    self.job_api.init_job(job_id=task.id, username=current_identity().id, type='export', filter=filters, slang=args.slang, tlang=args.tlang, limit=args.limit, duplicates_only=args.duplicates_only)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
     #
@@ -690,7 +687,7 @@ class TmExportResource(TmResource):
     #
     # # Task id and status (Celery is not involved, just for consistency)
     # task_id = uuid.uuid4()
-    # self.job_api.init_job(job_id=task_id, username=current_identity.id, type='export', filter=filters, slang=args.slang, tlang=args.tlang)
+    # self.job_api.init_job(job_id=task_id, username=current_identity().id, type='export', filter=filters, slang=args.slang, tlang=args.tlang)
     # self.job_api.set_status(task_id, "running")
     #
     # def segment_iter(filters):
@@ -733,7 +730,6 @@ class TmExportResource(TmResource):
 
 
 class TmExportFileResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
 
   """
   @api {get} /tm/export/file/<export_id> Download exported file or list all available downloads
@@ -749,8 +745,9 @@ class TmExportFileResource(TmResource):
    curl -G "http://127.0.0.1:5000/api/v1/tm/export/files/4235-45454-34343-43434"
    -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU' -X GET
   """
+  @permission("user")
   def get(self, export_id=None):
-    export = TMExport(current_identity.id)
+    export = TMExport(current_identity().id)
     # If specific ID was requested -> download it
     if export_id:
       files = export.list(export_id)
@@ -777,15 +774,15 @@ class TmExportFileResource(TmResource):
    curl -XDELETE "http://127.0.0.1:5000/api/v1/tm/export/files/4235-45454-34343-43434"
    -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU' -X GET
   """
+  @permission("user")
   def delete(self, export_id):
-    export = TMExport(current_identity.id)
+    export = TMExport(current_identity().id)
     export.delete(export_id)
     return {"message": "success"}
 
 
 
 class TmGenerateResource(TmResource):
-  decorators = [PermissionChecker(admin_permission)]
 
   # Import
   """
@@ -807,6 +804,7 @@ class TmGenerateResource(TmResource):
     curl -G "http://127.0.0.1:5000/api/v1/tm/generate?tag=Automotive&slang=de&tlang=fr&plang=en"
     -X PUT -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
    """
+  @permission("admin")
   def put(self):
     args = self._put_reqparse()
     args.tag = [d for d in args.tag if d] # filter empty values
@@ -824,7 +822,7 @@ class TmGenerateResource(TmResource):
     # Setup a job using Celery & ES
     task = self.generate_task.apply_async()
     self.job_api.init_job(job_id=task.id,
-                          username=current_identity.id,
+                          username=current_identity().id,
                           type='generate',
                           slang=args.slang,
                           tlang=args.tlang,
@@ -871,14 +869,14 @@ class TmGenerateResource(TmResource):
 """
 
 class TmPosTagResource(TmResource):
-  decorators = [PermissionChecker(admin_permission)]
 
+  @permission("admin")
   def post(self):
     args = self._put_pos_reqparse()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
     task = self.pos_tag_task.apply_async()
-    self.job_api.init_job(job_id=task.id, username=current_identity.id, type='pos_tag', filter=filters, slang=args.slang, tlang=args.tlang, universal=args.universal)
+    self.job_api.init_job(job_id=task.id, username=current_identity().id, type='pos_tag', filter=filters, slang=args.slang, tlang=args.tlang, universal=args.universal)
     return {"job_id": task.id, "message": "Job submitted successfully "}
 
   def _put_pos_reqparse(self):
@@ -915,14 +913,14 @@ class TmPosTagResource(TmResource):
  @apiSuccess {String} task_id ID of maintenance task invoked in the background
 """
 class TmMaintainResource(TmResource):
-  decorators = [PermissionChecker(admin_permission)]
 
+  @permission("admin")
   def post(self):
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
     task = self.maintain_task.apply_async()
-    self.job_api.init_job(job_id=task.id, username=current_identity.id, type='maintain', filter=filters, slang=args.slang, tlang=args.tlang)
+    self.job_api.init_job(job_id=task.id, username=current_identity().id, type='maintain', filter=filters, slang=args.slang, tlang=args.tlang)
     return {"job_id": task.id, "message": "Job submitted successfully "}
 
   @shared_task(bind=True)
@@ -948,14 +946,14 @@ class TmMaintainResource(TmResource):
  @apiSuccess {String} task_id ID of maintenance task invoked in the background
 """
 class TmCleanResource(TmResource):
-  decorators = [PermissionChecker(admin_permission)]
 
+  @permission("admin")
   def post(self):
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
     task = self.clean_task.apply_async()
-    self.job_api.init_job(job_id=task.id, username=current_identity.id, type='clean',  filter=filters, slang=args.slang, tlang=args.tlang)
+    self.job_api.init_job(job_id=task.id, username=current_identity().id, type='clean',  filter=filters, slang=args.slang, tlang=args.tlang)
     return {"job_id": task.id, "message": "Job submitted successfully "}
 
   @shared_task(bind=True)
@@ -975,8 +973,8 @@ class TmCleanResource(TmResource):
  @apiSuccess {Json} stats Various stats
 """
 class TmStatsResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
 
+  @permission("user")
   def get(self):
     stats =  self.db.mstats()
     lps = dict()
@@ -1018,7 +1016,7 @@ class TmStatsResource(TmResource):
 
     ##################
     # For regular user, just return language pair and tag stats
-    if current_identity.role == 'user':
+    if current_identity().role == 'user':
       stats = {'lang_pairs': stats['lang_pairs'],
                'tag': stats.get('tag',[])}
     return stats
@@ -1047,11 +1045,11 @@ class TmStatsResource(TmResource):
  @apiSuccess {Json} stats Various stats
 """
 class TmUsageStatsResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
 
+  @permission("user")
   def get(self):
     stats =  self.qlogger.stats()
     # For regular user, just return language pair stats
-    if current_identity.role == 'user':
-      stats = {current_identity.username: stats.get(current_identity.username, dict())}
+    if current_identity().role == 'user':
+      stats = {current_identity().username: stats.get(current_identity().username, dict())}
     return stats

@@ -24,14 +24,11 @@
 from flask_restful import Resource, abort, inputs
 from flask_restful.reqparse import RequestParser
 
-from flask_jwt import current_identity
-
 from RestApi.Models import Tags, CRUD
-from Auth import admin_permission, user_permission, PermissionChecker, UserScopeChecker
+from Auth import UserScopeChecker, permission
 from TMPreprocessor.TMRegExpPreprocessor import TMRegExpPreprocessor
 
 class TagsResource(Resource):
-  decorators = [PermissionChecker(user_permission)]
   regex_pp = TMRegExpPreprocessor()
 
   """
@@ -48,6 +45,7 @@ class TagsResource(Resource):
   @apiError {String} 403 Insufficient permissions
   
   """
+  @permission("user")
   def get(self, tag_id=None):
     tags = []
     if tag_id:
@@ -83,7 +81,7 @@ class TagsResource(Resource):
   @apiError {String} 403 Insufficient permissions
 
   """
-  @admin_permission.require(http_exception=403)
+  @permission("admin")
   def post(self, tag_id):
     args = self._reqparse()
     tag = Tags.query.get(tag_id)
@@ -121,7 +119,7 @@ class TagsResource(Resource):
   @apiError {String} 404 Tag doesn't exist
 
   """
-  @admin_permission.require(http_exception=403)
+  @permission("admin")
   def delete(self, tag_id):
     tag = Tags.query.get(tag_id)
     if tag:

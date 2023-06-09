@@ -70,6 +70,7 @@ class TMMap:
             'check_date': segment.check_date,
             'check_version': segment.check_version,
             'dirty_score': segment.dirty_score,
-            'username': segment.username
+            'username': segment.username,
+            'institution_id': segment.institution_id,
 
             }

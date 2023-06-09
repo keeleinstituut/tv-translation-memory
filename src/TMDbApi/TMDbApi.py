@@ -23,6 +23,9 @@
 # under the License.
 #
 import os, sys
+
+from src.RestApi.Auth import current_institution_id
+
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..'))
 sys.path = [p for p in sys.path if p]
 
@@ -112,7 +115,7 @@ class TMDbApi:
           if value -1 < 0: inf = 1
           else: inf = value -1
 
-          dic_filter.append({'target_language': tgt_lang, 'token_cnt': {"gte": inf, "lte": value + 1}})  # source language
+          dic_filter.append({'target_language': tgt_lang, 'token_cnt': {"gte": inf, "lte": value + 1}, 'institution_id': current_institution_id()})  # source language
           logging.info("Lenght Query SEARCH EXACT : {} ".format(value))
 
       else: # Normal query estinate the length of segments
@@ -123,9 +126,9 @@ class TMDbApi:
           sup = value + math.ceil((self.Q_TOKEN_COUNT * value) / 100)
           logging.info("Search maximum lenght : {} ".format(sup))
           if inf < 0: inf = 1
-          dic_filter.append({'target_language': tgt_lang, 'token_cnt': {"gte": inf, "lte": sup}}) # source language
+          dic_filter.append({'target_language': tgt_lang, 'token_cnt': {"gte": inf, "lte": sup}, 'institution_id': current_institution_id()}) # source language
     else: # PosTag method search one word, then exact lenght
-      dic_filter.append({'target_language': tgt_lang, 'token_cnt': {"gte": total_token, "lte": total_token}}) # target language
+      dic_filter.append({'target_language': tgt_lang, 'token_cnt': {"gte": total_token, "lte": total_token}, 'institution_id': current_institution_id()}) # target language
     return dic_filter
 
   def exact_query(self, qlist, src_lang, tgt_lang, limit, dic_filter):

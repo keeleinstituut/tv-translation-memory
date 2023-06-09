@@ -29,12 +29,36 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 #from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_oidc import OpenIDConnect
+from Config.Config import G_CONFIG
 
 app = Flask(__name__)
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@postgres/activatm?client_encoding=utf8'
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@localhost/activatm?client_encoding=utf8' #For local debugging
 db = SQLAlchemy(app)
+
+
+app.config['SECRET_KEY'] = 'super-secret'
+app.config['VERSION'] = 1
+app.config['PROPAGATE_EXCEPTIONS'] = True
+app.config['JWT_AUTH_HEADER_PREFIX'] = "Bearer"
+
+app.config.update({
+    'TESTING': True,
+    'DEBUG': True,
+    'OIDC_CLIENT_SECRETS': 'client_secrets.json',
+    'OIDC_ID_TOKEN_COOKIE_SECURE': False,
+    'OIDC_REQUIRE_VERIFIED_EMAIL': False,
+    'OIDC_USER_INFO_ENABLED': True,
+    'OIDC_OPENID_REALM': 'master',
+    'OIDC_SCOPES': ['openid', 'email', 'profile'],
+    'OIDC_INTROSPECTION_AUTH_METHOD': 'client_secret_post',
+    'OIDC_CALLBACK_ROUTE': '/oidc/callback'
+})
+
+oidc = OpenIDConnect(app)
+oidc.init_app(app)
 
 
 # Class to add, update and delete data via SQLALchemy sessions
@@ -81,7 +105,8 @@ class CRUD:
 
 
 class Users(db.Model):
-  username = db.Column(db.Text, primary_key=True)
+  uuid = db.Column(db.Text, primary_key=True)
+  username = db.Column(db.Text)
   password = db.Column(db.Text)
   role = db.Column(db.Text, default="user")
   token_expires = db.Column(db.Boolean, default=True)
@@ -94,12 +119,15 @@ class Users(db.Model):
   # Needed for JWT authentication
   @property
   def id(self):
-    return self.username
+    return self.uuid
 
-  ADMIN = 'admin'
+  keycloak_config = G_CONFIG.config['keycloak']
 
-  def __init__(self, username, **kwargs):
-    self.username = username
+  ADMIN = keycloak_config['admin_user']
+  ADMIN_ID = keycloak_config['admin_uuid']
+
+  def __init__(self, uuid, **kwargs):
+    self.uuid = uuid
     self.update(**kwargs)
 
   def update(self, **kwargs):
@@ -112,9 +140,9 @@ class Users(db.Model):
   def update_scope(self, **kwargs):
     if 'id' in kwargs and kwargs['id']:
       scope = UserScopes.query.get(kwargs['id'])
-      if not scope or scope.username != self.username: return None
+      if not scope or scope.user_uuid != self.uuid: return None
     else:
-      scope = UserScopes(self.username)
+      scope = UserScopes(self.uuid)
 
     for key,value in kwargs.items():
       if key == "tags":
@@ -128,12 +156,12 @@ class Users(db.Model):
 
   def get_scope(self, id):
     scope = UserScopes.query.get(id)
-    if not scope or scope.username != self.username:
+    if not scope or scope.user_uuid != self.uuid:
       return None
     return scope
 
   def delete_scopes(self):
-    UserScopes.query.filter_by(username = self.username).delete()
+    UserScopes.query.filter_by(user_uuid = self.uuid).delete()
 
   def set_password(self, password):
     self.password = generate_password_hash(password)
@@ -152,7 +180,7 @@ class Users(db.Model):
 class UserScopes(db.Model):
   id = db.Column(db.Integer, primary_key=True)
 
-  username = db.Column(db.Text, db.ForeignKey('users.username'))
+  user_uuid = db.Column(db.Text, db.ForeignKey('users.uuid'))
 
   # Permission patterns (list of wildcards)
   lang_pairs = db.Column(db.Text)
@@ -172,8 +200,8 @@ class UserScopes(db.Model):
   # Scope creation date
   created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
-  def __init__(self, username):
-    self.username = username
+  def __init__(self, user_uuid):
+    self.user_uuid = user_uuid
 
   def to_dict(self):
     return CRUD.to_dict(self)
@@ -190,12 +218,12 @@ class UserScopes(db.Model):
 class UserSettings(db.Model):
   id = db.Column(db.Integer, primary_key=True)
 
-  username = db.Column(db.Text, db.ForeignKey('users.username'))
+  user_uuid = db.Column(db.Text, db.ForeignKey('users.uuid'))
   # Regular expressions to apply (separated with comma)
   regex = db.Column(db.Text)
 
-  def __init__(self, username):
-    self.username = username
+  def __init__(self, user_uuid):
+    self.user_uuid = user_uuid
 
   def to_dict(self):
     return CRUD.to_dict(self)

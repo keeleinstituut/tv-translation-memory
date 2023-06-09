@@ -24,7 +24,7 @@
 
 
 class TMQueryParams:
-  def __init__(self,qlist, qinfo ,source_lang, target_lang, pipe, out ,limit, domains=None, min_match=75, concordance=False, aut_trans=False, exact_length=False):
+  def __init__(self,qlist, qinfo ,source_lang, target_lang, pipe, out ,limit, domains=None, min_match=75, concordance=False, aut_trans=False, exact_length=False, institution_id=None):
     self.qlist = qlist
     self.qinfo = qinfo
     self.source_lang = source_lang
@@ -37,3 +37,4 @@ class TMQueryParams:
     self.concordance = concordance
     self.aut_trans = aut_trans
     self.exact_length = exact_length
+    self.institution_id = institution_id

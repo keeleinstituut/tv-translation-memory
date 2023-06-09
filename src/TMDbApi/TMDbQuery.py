@@ -44,14 +44,14 @@ class TMDbQuery:
 
   def __init__(self, es, index, limit=10, q=None, filter=None):
     self.search = list()#Search(using=es, index=index)
-    self.msearch = self.es.multi_search(index=index)
+    self.msearch = es.multi_search(index=index)
     self.queries = list()
     self.num_segs = 0
     self.limit = limit
     # Build queries
     if isinstance(q, str):
       q = [q]
-    self._build(q)
+    self._build(q, es)
     # Build filter(s)
     if isinstance(filter, dict):
       filter = [filter]
@@ -117,20 +117,20 @@ class TMDbQuery:
 
     return values
 
-  def _build(self, q_list):
+  def _build(self, q_list, es):
     if not q_list:
       self.queries.append(Q())
       return
     # Build list of queries sorted by match in a decreasing order
     for q in q_list:
-      self.queries.append(self.es.q("match", text=q))
+      self.queries.append(es.q("match", text=q))
 
   def _filter(self, filter, es, index):
     if not filter:
-      self.search.append(self.es.search(index=index))
+      self.search.append(es.search(index=index))
       return
     for each_f in filter:
-      f = self.es.search(index=index)
+      f = es.search(index=index)
       # Build string-field filters
       for attr in self.monoling_str_attrs:
         if attr in each_f:
@@ -150,5 +150,5 @@ class TMDbQuery:
 if __name__ == '__main__':
   es = OpenSearchHelper()
   index = "map_en_es"
-  q = TMDbQuery(es.global_es, index)
+  q = TMDbQuery(es, index)
   print([r.to_dict() for r in q.duplicates("source_text")])
