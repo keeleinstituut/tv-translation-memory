@@ -21,6 +21,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import time
 import uuid
 import re
 import logging
@@ -32,6 +33,8 @@ from TMDbApi.TMUtils import TMUtils, TMTimer
 from TMDbApi.TMDbQuery import TMDbQuery
 
 from helpers.OpenSearchHelper import OpenSearchHelper
+
+from src.RestApi.Auth import current_institution_id
 
 
 class TMMapES(TMMap):
@@ -318,7 +321,16 @@ class TMMapES(TMMap):
     qfield = "source_id" if not swap else "target_id"
 
     search = self.es.search(index=m_index)
-    search.query = self.es.q(name='term', **{qfield: source_id})
+    search.query = self.es.q(name='match', **{qfield: source_id})
+    logging.info("Search: {}".format(search.to_dict()))
+
+    res = search.execute()
+    if len(res.hits) > 0:
+      for item in res.hits:
+        if item['using_type'] == 'internal' and item['institution_id'] != current_institution_id():
+           search = None
+        elif item['using_type'] == 'shared' and item['institution_id'] != None:
+           search = None
     return search,swap
 
   def _create_search_mindexes(self, source_id, source_lang, target_langs):
@@ -467,6 +479,26 @@ class TMMapES(TMMap):
               "ignore_above": 256
             }
           },
+          "fielddata": True
+        },
+        "file_name": {
+          "type": "text",
+          "fields": {
+              "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+              }
+          },
+          "fielddata": True
+        },
+        "update_date": {
+            "type": "text",
+            "fields": {
+                "keyword": {
+                    "type": "keyword",
+                    "ignore_above": 256
+                }
+            },
           "fielddata": True
         }
       }

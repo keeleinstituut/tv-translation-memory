@@ -622,6 +622,13 @@
             "optional": true,
             "field": "file_name",
             "description": "<p>File name (or source name)</p>"
+          },
+          {
+            "group": "Parameter",
+            "type": "String",
+            "optional": false,
+            "field": "using_type",
+            "description": "<p>Principles of using translation memory (public, shared, internal)</p>"
           }
         ]
       }

@@ -215,7 +215,9 @@ class TmResource(Resource):
                         "update_date": segment.update_date,
                         "username": segment.username,
                         "file_name": segment.file_name,
-                        "tag": filtered_tags
+                        "tag": filtered_tags,
+                        "institution_id": segment.institution_id,
+                        "using_type": segment.using_type
         }
         # TODO: hide some fields for user?
         if (current_identity().role != Users.ADMIN):
@@ -286,6 +288,7 @@ class TmResource(Resource):
    @apiParam {String} tmeta Target metadata (JSON).
    @apiParam {String} tag Translation unit tag.
    @apiParam {String} [file_name] File name (or source name)
+   @apiParam {String} using_type Principles of using translation memory (public, shared, internal)
   """
   @permission("user")
   def post(self):
@@ -314,7 +317,8 @@ class TmResource(Resource):
                          'tm_creation_date': now_str,
                          'tm_change_date': now_str,
                          'username': current_identity().id,
-                         'institution_id': current_institution_id() })
+                         'institution_id': current_institution_id(),
+                         'using_type': args.using_type})
     self.db.add_segments([segment]) #add_segment(segment) --> Change this line, because the function add_segment replace tag in TM
     return  {'message': 'Translation unit was added successfully'}
 
@@ -330,8 +334,9 @@ class TmResource(Resource):
     # TODO: when domain parameter is removed, make tag to be required parameter
     parser.add_argument(name='tag', required=False, help="Tag or domain name is a mandatory option", action='append')
     parser.add_argument(name='domain', required=False, help="DEPRECATED: use 'tag' instead", type=str)
-
     parser.add_argument(name='file_name', help="File or source name", type=str, default='')
+
+    parser.add_argument(name='using_type', required=True, help="Principles of using translation memory", type=self._validate_using_type)
 
     # Add filter arguments to the parser
     self._add_filter_args(parser)
@@ -392,6 +397,18 @@ class TmResource(Resource):
       print(e)
       abort(400, mesage="Unsupported language".format(lang))
     return lang
+
+  def _validate_using_type(self, type):
+    if not type: return type
+
+    type = type.lower()
+    try:
+      if type not in ['public', 'shared', 'internal']:
+        raise abort(400, mesage="Unsupported using type".format(type))
+    except Exception as e:
+      print(e)
+      abort(400, mesage="Unsupported using type".format(type))
+    return type
 
   def _common_reqparse(self):
     parser = RequestParser()

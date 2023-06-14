@@ -72,5 +72,6 @@ class TMMap:
             'dirty_score': segment.dirty_score,
             'username': segment.username,
             'institution_id': segment.institution_id,
+            'using_type': segment.using_type,
 
             }
