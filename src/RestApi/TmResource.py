@@ -604,7 +604,7 @@ class TmImportResource(TmResource):
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='import', file=args.full_path, domain=tag_ids, lang_pairs=lang_pairs)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
-  shared_task(bind=True)
+  @shared_task(bind=True)
   def import_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Import')
     return {'status': 'Task completed!'}

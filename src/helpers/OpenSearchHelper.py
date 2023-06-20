@@ -2,20 +2,12 @@ from Config.Config import G_CONFIG
 from opensearchpy import OpenSearch, helpers, Search, MultiSearch, Q, exceptions
 
 
-OPENSEARCH_HOST = G_CONFIG.config['opensearch']['host']
-OPENSEARCH_PORT = G_CONFIG.config['opensearch']['port']
-
-global_es = OpenSearch(hosts=[{'host': OPENSEARCH_HOST, 'port': OPENSEARCH_PORT}], timeout=30, max_retries=3,
-                       retry_on_timeout=True)
-# global_es = OpenSearch(hosts='http://127.0.0.1:9200', timeout=30, max_retries=3,
-#                        retry_on_timeout=True) #For local debugging
-
-
 class OpenSearchHelper():
 
     def __init__(self):
-        self.global_es = global_es
-        self.__es = global_es
+        config = G_CONFIG.config['opensearch']
+        self.__es = OpenSearch(hosts=[{'host': config['host'], 'port': config['port']}],
+                               timeout=30, max_retries=3, retry_on_timeout=True)
 
     def indices_put_template(self, name, body):
         try:
@@ -65,6 +57,3 @@ class OpenSearchHelper():
 
     def put_script(self, index, body):
         return self.__es.put_script(id=index, body=body)
-
-
-es = OpenSearchHelper()

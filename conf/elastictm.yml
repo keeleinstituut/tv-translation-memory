@@ -9,8 +9,24 @@ spark:
   segments_per_task: 10000
 
 opensearch:
-  host: opensearch-node1
+  host: opensearch-node1 # 127.0.0.1
   port: 9200
+
+postgresql:
+  host: postgres # localhost
+  port: 5432 # 5433
+  db: activatm
+  user: activatm
+  password: activatm
+
+keycloak:
+  grant_type: password
+  client_id: web
+  client_secret: JIczLfBIZzoGM6Mmcnnp0tfpmUkDEc76
+  url: http://keycloak:8080/auth/ # http://127.0.0.1:8180/auth/
+  realm: master
+  admin_user: admin
+  admin_uuid: 8b41f2bf-e199-4358-9a78-8fe1dc8a2762
 
 query:
     #Penalize match if segment doesn't belong to requested domain or it is a dirty segment

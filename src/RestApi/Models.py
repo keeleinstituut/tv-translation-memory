@@ -29,10 +29,19 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 #from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from Config.Config import G_CONFIG
+
+POSTGRESQL_HOST = G_CONFIG.config['postgresql']['host']
+POSTGRESQL_PORT = G_CONFIG.config['postgresql']['port']
+POSTGRESQL_DB = G_CONFIG.config['postgresql']['db']
+POSTGRESQL_USER = G_CONFIG.config['postgresql']['user']
+POSTGRESQL_PASSWORD = G_CONFIG.config['postgresql']['password']
 
 app = Flask(__name__)
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@postgres/activatm?client_encoding=utf8'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://' + POSTGRESQL_USER + ':' + POSTGRESQL_PASSWORD + '@' \
+                                        + POSTGRESQL_HOST + ':' + str(POSTGRESQL_PORT) + '/' \
+                                        + POSTGRESQL_DB + '?client_encoding=utf8'
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@localhost/activatm?client_encoding=utf8' #For local debugging
 db = SQLAlchemy(app)
 

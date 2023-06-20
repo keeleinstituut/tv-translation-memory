@@ -1,5 +1,3 @@
-create user activatm; 
-alter user activatm with password 'activatm';
 CREATE DATABASE activatm
     WITH
     ENCODING = 'UTF8'
