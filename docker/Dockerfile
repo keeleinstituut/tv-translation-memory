@@ -6,9 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
 RUN apt-get update && apt-get install -y git
 
 # Install packages
-RUN apt-get install -y libxml2-dev libxslt1-dev python3-dev python3-bs4 libcurl4-openssl-dev apt-transport-https zip libtercpp-dev
+RUN apt-get install -y libxml2-dev libxslt1-dev python3.9-dev python3-bs4 libcurl4-openssl-dev apt-transport-https zip libtercpp-dev
 RUN apt-get install -y libblas-dev liblapack-dev libatlas-base-dev gfortran libssl-dev
-RUN apt-get install -y python3-numpy python3-scipy python3-matplotlib python3-pandas python3-sympy python3-nose python3-dev
+RUN apt-get install -y python3-numpy python3-scipy python3-matplotlib python3-pandas python3-sympy python3-nose
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils software-properties-common iputils-ping
 # Install Java
 RUN apt-get install -y default-jre default-jdk
