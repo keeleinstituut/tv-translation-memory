@@ -43,6 +43,7 @@ class TMDbQuery:
   attrs = str_attrs + date_attrs
 
   def __init__(self, es, index, limit=10, q=None, filter=None):
+    self.es = OpenSearchHelper()
     self.search = list()#Search(using=es, index=index)
     self.msearch = self.es.multi_search(index=index)
     self.queries = list()
@@ -76,7 +77,7 @@ class TMDbQuery:
     # Count total scan size
     for q, f in zip(self.queries, self.search):
       search = f.query(q)
-      self.num_segs += search[:1].execute().hits.total
+      self.num_segs += search[:1].execute().hits.total['value']
     return self.num_segs
 
   def scan(self):
@@ -123,7 +124,7 @@ class TMDbQuery:
       return
     # Build list of queries sorted by match in a decreasing order
     for q in q_list:
-      self.queries.append(self.es.q("match", text=q))
+      self.queries.append(Q("match", text=q))
 
   def _filter(self, filter, es, index):
     if not filter:
