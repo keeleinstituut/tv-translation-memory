@@ -33,7 +33,7 @@ class TMTranslationUnit:
                 'tuid', 'dirty_score', 'username',
                 'industry', 'type', 'file_name', 'domain', 'organization',
                 'tm_creation_date', 'tm_change_date',
-                'insert_date', 'update_date', 'check_date', 'check_version', 'institution_id', 'using_type']
+                'insert_date', 'update_date', 'check_date', 'check_version', 'institution_id', 'using_type', 'id']
   def __init__(self, sdict={}):
     self.reset(sdict)
 

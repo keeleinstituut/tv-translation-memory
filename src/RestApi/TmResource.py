@@ -209,7 +209,8 @@ class TmResource(Resource):
             r.clear() # Clear all previous results to leave only 101
             count = args.limit # break on finding perfect match
 
-        segment_json = {"tu": segment.to_dict_short(),
+        segment_json = {"id": segment.id,
+                        "tu": segment.to_dict_short(),
                         "match": int(match),
                         "mt": results[1],
                         "update_date": segment.update_date,

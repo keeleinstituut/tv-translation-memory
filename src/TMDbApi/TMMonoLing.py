@@ -199,7 +199,7 @@ class TMMonoLing:
 
     op_ftype = 'source' if ftype == 'target' else 'target'
     # Auxiliary field to facilitate language matrix generation
-    doc['target_language'] = TMUtils.lang2short(TMUtils.str2list(getattr(segment, op_ftype + '_language'))[0])
+    doc['target_language'] = [TMUtils.lang2short(TMUtils.str2list(getattr(segment, op_ftype + '_language'))[0])]
     doc['token_cnt'] = self.token_count(getattr(segment, ftype + '_text'), getattr(segment, ftype + '_language'))
     return doc
 

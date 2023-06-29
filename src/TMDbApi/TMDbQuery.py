@@ -63,6 +63,7 @@ class TMDbQuery:
     for q, f in zip(self.queries, self.search):
       msearch = msearch.add(f.query(q)[:self.limit]) # Specific filter for each querie
 
+    logging.info("M Search: {}".format(msearch.to_dict()))
     # Execute queries
     responses = msearch.execute()
     # Process responses

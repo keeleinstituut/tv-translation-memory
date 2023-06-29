@@ -140,6 +140,7 @@ class TMMapES(TMMap):
           results.append(None)
           continue
         for ret_doc in res.hits:
+          ret_doc['id'] = res.hits.hits[0]['_id']
           # Exchange source and target (if needed)
           if swap: ret_doc = self._swap(ret_doc)
           results.append(ret_doc)
