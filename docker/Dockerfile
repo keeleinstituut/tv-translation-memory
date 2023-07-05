@@ -267,7 +267,9 @@ RUN echo  "#! /bin/bash\n supervisord"  > run.sh
 RUN echo  "#! /bin/bash\n http-server /opt/elastictm/doc --port 3050"  > rundocs.sh
 RUN echo  "#! /bin/bash\n python3 /opt/elastictm/src/RestApi/Api.py"  > runapi.sh
 
-RUN mkdir -p $ELASTICTM/log
+RUN mkdir -p $ELASTICTM/log \
+    && touch $ELASTICTM/log/gunicorn.log \
+    && chmod 666 $ELASTICTM/log/gunicorn.log
 
 # Run Supervisor - responsible to start up & keep alive all services:
 RUN chmod +x run.sh && \
