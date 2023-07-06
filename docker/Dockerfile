@@ -1,7 +1,5 @@
 FROM debian:bullseye-slim
 
-MAINTAINER Hakan Baysal <hakanbysl@gmail.com>
-
 # ensure local python is preferred over distribution python
 ENV PATH /usr/local/bin:$PATH
 
