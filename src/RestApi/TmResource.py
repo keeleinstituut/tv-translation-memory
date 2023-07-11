@@ -24,7 +24,7 @@
 from flask import Response, request
 from flask_restful import Resource, abort, inputs
 from flask_restful.reqparse import RequestParser
-import werkzeug
+from werkzeug.datastructures import FileStorage
 import os
 import dateutil.parser
 import tempfile
@@ -33,7 +33,7 @@ import datetime
 import json
 import logging
 
-from celery import task
+from celery import shared_task
 
 from TMDbApi.TMDbApi import TMDbApi
 from TMDbApi.TMUtils import TMUtils
@@ -63,7 +63,7 @@ from flask_jwt import current_identity
 class TmResource(Resource):
   decorators = [PermissionChecker(user_permission)]
 
-  db = TMDbApi('elasticsearch')
+  db = TMDbApi('opensearch')
   job_api = ESJobApi()
   qlogger = TMQueryLogger()
 
@@ -165,7 +165,7 @@ class TmResource(Resource):
       op_match = []
     else: op_match = args.operation_match.split(',')
     # The second argument is an empty list, because the query has not been preprocessed (tokenizer and posTag)
-    # exact_query indicate if we want to search on elasticsearch segments with exact length
+    # exact_query indicate if we want to search on opensearch segments with exact length
     tag_ids = args.tag if args.tag else args.domain # backward compatibility fallback
     self._validate_tag_ids(tag_ids, abort_if_not_exists=False)
 
@@ -377,7 +377,7 @@ class TmResource(Resource):
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='delete', filter=filters, slang=args.slang, tlang=args.tlang, duplicates_only=args.duplicates_only)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def delete_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Delete')
     return {'status': 'Task completed!'}
@@ -604,7 +604,7 @@ class TmImportResource(TmResource):
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='import', file=args.full_path, domain=tag_ids, lang_pairs=lang_pairs)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def import_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Import')
     return {'status': 'Task completed!'}
@@ -615,7 +615,7 @@ class TmImportResource(TmResource):
 
   def _put_reqparse(self):
     parser = RequestParser()
-    parser.add_argument(name='file', required=True, type=werkzeug.FileStorage, location='files')
+    parser.add_argument(name='file', required=True, type=FileStorage, location='files')
     parser.add_argument(name='tag', required=True,  action='append', help="Translation memories tag is a mandatory option")
     parser.add_argument(name='lang_pair', action='append', help="Language pair to parse from TMX. May supply multiple pairs \ "
                                                "Each pair is a string of 2-letter language codes joined with underscore",
@@ -623,7 +623,7 @@ class TmImportResource(TmResource):
 
                         )
 
-    args =  parser.parse_args()
+    args = parser.parse_args()
     # Store file in a local tmp dir
     tmp_dir = tempfile.mkdtemp(prefix='elastictm')
     os.chmod(tmp_dir, 0o755)
@@ -723,7 +723,7 @@ class TmExportResource(TmResource):
     # os.remove(tmpfile)
     # return response
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def export_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Export')
     return {'status': 'Task completed!'}
@@ -746,7 +746,7 @@ class TmExportFileResource(TmResource):
   @apiSuccess {File} binary Content of zipped TMX file(s) (if export_id is supplied)
   @apiSuccess {Json} files List of all available exports (if export_id is not supplied)
   @apiExample {curl} Example usage:
-   curl -G "http://127.0.0.1:5000/api/v1/tm/export/files/4235-45454-34343-43434"
+   curl -G "http://127.0.0.1:5000/api/v1/tm/export/file/4235-45454-34343-43434"
    -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU' -X GET
   """
   def get(self, export_id=None):
@@ -774,7 +774,7 @@ class TmExportFileResource(TmResource):
   @apiPermission user
 
   @apiExample {curl} Example usage:
-   curl -XDELETE "http://127.0.0.1:5000/api/v1/tm/export/files/4235-45454-34343-43434"
+   curl -XDELETE "http://127.0.0.1:5000/api/v1/tm/export/file/4235-45454-34343-43434"
    -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU' -X GET
   """
   def delete(self, export_id):
@@ -832,7 +832,7 @@ class TmGenerateResource(TmResource):
                           domain=args.tag)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def generate_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Generate')
     return {'status': 'Task completed!'}
@@ -893,7 +893,7 @@ class TmPosTagResource(TmResource):
     args = parser.parse_args()
     return args
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def pos_tag_task(self):
     SparkTaskDispatcher().run(self.request.id, 'PosTag')
     return {'status': 'Task completed!'}
@@ -925,7 +925,7 @@ class TmMaintainResource(TmResource):
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='maintain', filter=filters, slang=args.slang, tlang=args.tlang)
     return {"job_id": task.id, "message": "Job submitted successfully "}
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def maintain_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Maintain')
     return {'status': 'Task completed!'}
@@ -958,7 +958,7 @@ class TmCleanResource(TmResource):
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='clean',  filter=filters, slang=args.slang, tlang=args.tlang)
     return {"job_id": task.id, "message": "Job submitted successfully "}
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def clean_task(self):
     SparkTaskDispatcher().run(self.request.id, 'Clean')
     return {'status': 'Task completed!'}

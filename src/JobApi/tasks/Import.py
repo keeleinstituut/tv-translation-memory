@@ -47,7 +47,7 @@ if __name__ == "__main__":
   G_CONFIG.config_logging()
 
   task = ImportTask(sys.argv[1])
-  # TODO: enable parallel import when there is enough servers for ElasticSearch
+  # TODO: enable parallel import when there is enough servers for OpenSearch
   # For now, just import sequentially
   task.run_sequential()
   task.finalize()

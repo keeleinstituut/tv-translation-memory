@@ -49,7 +49,7 @@ import TMMapES
 def create(engine):
   # FIXME: figure
   engine_map = {
-    'elasticsearch': TMMapES.TMMapES,
+    'opensearch': TMMapES.TMMapES,
   }
   if not engine in engine_map:
     raise (Exception('Unsupported MapDB engine: {}, supported ones are {}'.format(engine, engine_map.keys())))

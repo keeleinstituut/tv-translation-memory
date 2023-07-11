@@ -76,10 +76,10 @@ class TMSplitMatch():
     my_puntation_list = ['!', '"', '#', '$', '%', '&', "'", ')', '*', '+', ',', '-', '.', ':', ';', '<', '=', '>', '?','@','\\', ']', '^', '_', '`', '|', '}', '~', '。', '，', '；', '、']
 
     out_translation = []
-    c_list = [(i[0], i[0]) for i in list_marks if i and i[1] not in my_puntation_list] # This list is use to query elasticsearch, using token_count method. This function, estimate the total of token after
+    c_list = [(i[0], i[0]) for i in list_marks if i and i[1] not in my_puntation_list] # This list is use to query opensearch, using token_count method. This function, estimate the total of token after
     # simplified tags, if there are tags on query. In this case, there are not tags, then I pass the query string in both position of tuple.
 
-    # Call elasticsearch  #
+    # Call opensearch  #
     dic_filter = self.tmdb_api._filter_by_query(c_list, self.src_lang, self.tgt_lang, 1, True)
 
     out_elastic = [(query, segment[0].target_text.lower()) if segment else (query, []) for query, segment in self.tmdb_api.exact_query([q0 for q0, q1 in c_list], self.src_lang, self.tgt_lang, 10, dic_filter)]  # exact_query(un_match, self.src_lang, self.tgt_lang, limit, exact_length)
@@ -136,7 +136,7 @@ class TMSplitMatch():
     else:
       list_info_query = [{'tokenizer': self.list_query[j], 'pos': self.list_pos [j]} for j in range(0, len(self.list_query))]
 
-    # Query Elasticsearch --> out=moses to return only one segment
+    # Query Opensearch --> out=moses to return only one segment
     l_best_segments = self.tmdb_api.query([TMUtilsMatching.pre_process(q.split(' '), self.src_lang, 'untokenizer', {}) for q in self.list_query], list_info_query, (self.src_lang, self.tgt_lang), pipe=['regex', 'tags', 'posTag'], out='moses', limit=5, domains=None, min_match=80, concordance=False, aut_trans=False, exact_length=False)
 
     join_source = ''

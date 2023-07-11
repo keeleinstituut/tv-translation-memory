@@ -29,10 +29,20 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 #from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from Config.Config import G_CONFIG
+
+POSTGRESQL_HOST = G_CONFIG.config['postgresql']['host']
+POSTGRESQL_PORT = G_CONFIG.config['postgresql']['port']
+POSTGRESQL_DB = G_CONFIG.config['postgresql']['db']
+POSTGRESQL_USER = G_CONFIG.config['postgresql']['user']
+POSTGRESQL_PASSWORD = G_CONFIG.config['postgresql']['password']
 
 app = Flask(__name__)
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@localhost/activatm?client_encoding=utf8'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://' + POSTGRESQL_USER + ':' + POSTGRESQL_PASSWORD + '@' \
+                                        + POSTGRESQL_HOST + ':' + str(POSTGRESQL_PORT) + '/' \
+                                        + POSTGRESQL_DB + '?client_encoding=utf8'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@localhost/activatm?client_encoding=utf8' #For local debugging
 db = SQLAlchemy(app)
 
 
@@ -217,10 +227,11 @@ class Tags(db.Model):
    def to_dict(self):
      return CRUD.to_dict(self)
 
-   # Use this method to migrate existing tags (domains) from ElasticSearch
+   # Use this method to migrate existing tags (domains) from OpenSearch
    @staticmethod
    def get_add_tags(tags):
      for tag_id in tags:
+       with app.app_context():
         if not Tags.query.get(tag_id):
           tag = Tags(tag_id, name=tag_id, type="unspecified")
           CRUD.add(tag)
@@ -254,13 +265,3 @@ class Tags(db.Model):
        if tag: tag_ids.append(tag.id)
      return Tags.has_public(tag_ids)
 
-
-try:
-  db.create_all()
-except Exception as e:
-  print(e)
-
-# Insert initial admin user
-if not Users.query.count():
-  admin = Users(Users.ADMIN, password=Users.ADMIN, role=Users.ADMIN)
-  CRUD.add(admin)

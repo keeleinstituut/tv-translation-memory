@@ -39,7 +39,7 @@ class Config:
 
   def load(self, conf_file):
     with open(conf_file, 'r') as ymlfile:
-      self.config = yaml.load(ymlfile)
+      self.config = yaml.full_load(ymlfile)
       self.is_loaded = True
 
   def get_cleaning_rules(self, langs=None):

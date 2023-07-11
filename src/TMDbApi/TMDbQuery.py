@@ -22,7 +22,9 @@
 # under the License.
 #
 import logging
-from elasticsearch_dsl import MultiSearch, Search, Q
+from opensearchpy import Q
+from helpers.OpenSearchHelper import OpenSearchHelper
+
 
 class TMDbQuery:
 
@@ -41,8 +43,9 @@ class TMDbQuery:
   attrs = str_attrs + date_attrs
 
   def __init__(self, es, index, limit=10, q=None, filter=None):
+    self.es = OpenSearchHelper()
     self.search = list()#Search(using=es, index=index)
-    self.msearch = MultiSearch(using=es, index=index)
+    self.msearch = self.es.multi_search(index=index)
     self.queries = list()
     self.num_segs = 0
     self.limit = limit
@@ -74,7 +77,7 @@ class TMDbQuery:
     # Count total scan size
     for q, f in zip(self.queries, self.search):
       search = f.query(q)
-      self.num_segs += search[:1].execute().hits.total
+      self.num_segs += search[:1].execute().hits.total['value']
     return self.num_segs
 
   def scan(self):
@@ -125,10 +128,10 @@ class TMDbQuery:
 
   def _filter(self, filter, es, index):
     if not filter:
-      self.search.append(Search(using=es, index=index))
+      self.search.append(self.es.search(index=index))
       return
     for each_f in filter:
-      f = Search(using=es, index=index)
+      f = self.es.search(index=index)
       # Build string-field filters
       for attr in self.monoling_str_attrs:
         if attr in each_f:
@@ -146,8 +149,7 @@ class TMDbQuery:
 
 
 if __name__ == '__main__':
-  from elasticsearch import Elasticsearch
-  es = Elasticsearch()
+  es = OpenSearchHelper()
   index = "map_en_es"
-  q = TMDbQuery(es, index)
+  q = TMDbQuery(es.global_es, index)
   print([r.to_dict() for r in q.duplicates("source_text")])

@@ -22,10 +22,10 @@
 # under the License.
 #
 import datetime
-from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Search, Q
 from JobApi.JobApiC import JobApi
 from TMDbApi.TMUtils import TMUtils
+
+from helpers.OpenSearchHelper import OpenSearchHelper
 
 
 class ESJobApi(JobApi):
@@ -33,10 +33,10 @@ class ESJobApi(JobApi):
   INDEX = 'jobs'
 
   def __init__(self, **kwargs):
-    self.es = Elasticsearch(kwargs = kwargs)
-    if not self.es.indices.exists(index=self.INDEX):
-      self.es.indices.create(index=self.INDEX, body=self._index_template())
-    self.es.indices.put_template(name='job_template', body=self._index_template())
+    self.es = OpenSearchHelper()
+    if not self.es.indices_exists(index=self.INDEX):
+      self.es.indices_create(index=self.INDEX, body=self._index_template())
+    self.es.indices_put_template(name='job_template', body=self._index_template(is_template=True))
 
   def init_job(self, job_id=None, username=None, type='default', **kwargs):
     doc = {
@@ -84,7 +84,7 @@ class ESJobApi(JobApi):
     self.es.index(index=self.INDEX, id=job_id, doc_type=self.DOC_TYPE, body=doc)
 
   def scan_jobs(self, limit=10, username_filter=None):
-    search = Search(using=self.es, index=self.INDEX).sort('-submit_time')[:limit]
+    search = self.es.search(index=self.INDEX).sort('-submit_time')[:limit]
 
     # TODO: First query - currently running jobs, second one - other jobs
     # q = Q('match', status='running')
@@ -96,22 +96,27 @@ class ESJobApi(JobApi):
         continue
       yield hit
 
-  def _index_template(self):
-    template = {
-      "template" : self.INDEX,
+  def _index_template(self, is_template=False):
+    template = {}
+    mappings = {
       "mappings": {
-        self.DOC_TYPE: {
-          "properties": {
-            "submit_time": {
-              "type": "date",
-              "format": "basic_date_time_no_millis"
-            },
-            "end_time": {
-              "type": "date",
-              "format": "basic_date_time_no_millis"
-            },
-          }
+        "properties": {
+          "submit_time": {
+            "type": "date",
+            "format": "basic_date_time_no_millis"
+          },
+          "end_time": {
+            "type": "date",
+            "format": "basic_date_time_no_millis"
+          },
         }
       }
     }
+
+    if is_template:
+      template['index_patterns'] = [self.INDEX]
+      template['template'] = mappings
+    else:
+      template = mappings
+
     return template

@@ -39,8 +39,8 @@ from celery import Celery
 from datetime import timedelta
 
 from Config.Config import G_CONFIG
+from RestApi.Models import db, app, CRUD, Users
 
-app = Flask(__name__)
 app.config['SECRET_KEY'] = 'super-secret'
 app.config['VERSION'] = 1
 app.config['PROPAGATE_EXCEPTIONS'] = True
@@ -58,8 +58,8 @@ app.logger.handlers.extend(logging.getLogger("gunicorn.error").handlers)
 principals = Principal(app)
 
 # Celery configuration
-app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+app.config['CELERY_BROKER_URL'] = 'redis://redis:6379/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://redis:6379/0'
 # Initialize Celery
 celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(app.config)
@@ -131,7 +131,7 @@ api.add_resource(TagsResource, api_prefix + '/tags',
  @apiError {String} 401 Invalid credentials
 
  @apiExample {curl} Example usage:
- curl -H "Content-Type: application/json" -XPOST http://127.0.0.1:5000/api/v1/auth -d
+ curl -H "Content-Type: application/json" -XPOST http://127.0.0.1:/api/v1/auth -d
  '{ "username": "user1", "password": "abcxy"}'
 """
 app.config['JWT_AUTH_URL_RULE'] = api_prefix + '/auth'
@@ -143,7 +143,17 @@ jwt.jwt_payload_handler(jwt_payload_handler)
 # jwt.request_handler(jwt_request_handler)
 
 # Admin UI
-app.register_blueprint(admin_ui)
+#app.register_blueprint(admin_ui)
+
+with app.app_context():
+    # Extensions like Flask-SQLAlchemy now know what the "current" app
+    # is while within this block. Therefore, you can now run........
+    db.create_all()
+
+    # Insert initial admin user
+    if not Users.query.count():
+        admin = Users(Users.ADMIN, password=Users.ADMIN, role=Users.ADMIN)
+        CRUD.add(admin)
 
 if __name__ == '__main__':
     print(os.getcwd())
@@ -152,5 +162,7 @@ if __name__ == '__main__':
     app.logger.addHandler(stream_handler)
     # fix gives access to the gunicorn error log facility
     app.logger.handlers.extend(logging.getLogger("gunicorn.error").handlers)
-    app.run(debug=True)
+    # db.init_app(app)
+    # app.run(host='0.0.0.0', debug=True, port=5002) #For local debugging
+    app.run(host='0.0.0.0', debug=True)
 

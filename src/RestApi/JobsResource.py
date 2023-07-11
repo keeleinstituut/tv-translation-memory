@@ -23,7 +23,7 @@
 #
 from flask_restful import Resource, abort
 from flask_restful.reqparse import RequestParser
-from celery import task
+from celery import shared_task
 from flask_jwt import current_identity, jwt_required
 
 from Auth import admin_permission, user_permission, PermissionChecker
@@ -95,7 +95,7 @@ class JobsResource(Resource):
     task = self.kill_task.apply_async([job_id])
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
-  @task(bind=True)
+  @shared_task(bind=True)
   def kill_task(self, job_id):
     SparkTaskDispatcher().run(job_id, 'KillTask')
     return {'status': 'Task completed!'}

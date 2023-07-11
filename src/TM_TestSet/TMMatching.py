@@ -140,7 +140,7 @@ class TMMatching:
   #       self._adjust_match(segment, filter, improve_ter)))
   #     break
   #   if (
-  #               count == 10 or improve_ter > ter) and ter < 0.25:  # Fuzzy Match, but wasn't improved ter value --> Return elasticsearch match
+  #               count == 10 or improve_ter > ter) and ter < 0.25:  # Fuzzy Match, but wasn't improved ter value --> Return opensearch match
   #     print("source: " + src_input + ' tm_target: ' + segment['target_text'] + ' Match: ' + str(
   #       self._adjust_match(segment, filter, ter)))
   #     todo_ok = False
@@ -178,7 +178,7 @@ class TMFuzzyMatch(TMMatching):
     dic_fuzzy['src_re'] = self.pre_process(dic_fuzzy['src_tok'], self.src_lang, 'reg_exp')
 
     for segment in self.l_best_segments:
-      #Check if elasticsearch segment is better that a threshold
+      #Check if opensearch segment is better that a threshold
       elastic_ter = self.ter_score(self.src_input, segment[0]['source_text'])
       print('Elastic_ter ' + str(elastic_ter))
       if elastic_ter <= self.threshold: # Probably it is possible improve the matching value
@@ -287,7 +287,7 @@ class TMFuzzyMatch_PosTagger(TMMatching):
       # [word, pos] tm_src segment
       dic_fuzzy['src_word_pos'] = self.segment_2_universal(segment[0]['source_text'], segment[0]['source_pos'], self.src_lang)
 
-      #In this step I knwow that elasticsearch TER segment wasn't improve with regular expression
+      #In this step I knwow that opensearch TER segment wasn't improve with regular expression
       elastic_ter = self.ter_score(dic_fuzzy['src_tok'], segment[0]['source_text'])
       print('Elastic_ter ' + str(elastic_ter))
 

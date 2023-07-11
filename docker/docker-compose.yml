@@ -1,0 +1,133 @@
+version: "3.8"
+
+services:
+  postgres:
+    container_name: tv_db
+    image: postgres:11
+    ports:
+      - 5433:5432
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    networks:
+      - tv-network
+    volumes:
+       - ./postgres:/data/postgres
+       - ./pgsql/1_schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
+    restart: unless-stopped
+
+  redis:
+    container_name: tv_redis
+    image: redis:latest
+    ports:
+      - 6379:6379
+    networks:
+      - tv-network
+
+  nginx:
+    container_name: tv_web
+    build: ./nginx
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+    networks:
+      - tv-network
+    ports:
+      - "7979:7979"
+      - "7878:7878"
+
+  spark:
+    container_name: tv_spark
+    image: bde2020/spark-master:3.3.0-hadoop3.3
+    ports:
+      - "8080:8082"
+      - "7077:7077"
+    environment:
+      - INIT_DAEMON_STEP=setup_spark
+    networks:
+      - tv-network
+  
+  spark-worker:
+    image: bde2020/spark-worker:3.3.0-hadoop3.3
+    container_name: spark-worker
+    depends_on:
+      - spark
+    ports:
+      - "8081:8081"
+    environment:
+      - "SPARK_MASTER=spark://spark:7077"
+    networks:
+      - tv-network
+
+  opensearch-node1:
+    image: opensearchproject/opensearch:latest
+    container_name: opensearch-node1
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node1
+      - bootstrap.memory_lock=true # along with the memlock settings below, disables swapping
+      - "OPENSEARCH_JAVA_OPTS=-Xms1024m -Xmx1024m" # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
+      - "DISABLE_INSTALL_DEMO_CONFIG=true" # disables execution of install_demo_configuration.sh bundled with security plugin, which installs demo certificates and security configurations to OpenSearch
+      - "DISABLE_SECURITY_PLUGIN=true" # disables security plugin entirely in OpenSearch by setting plugins.security.disabled: true in opensearch.yml
+      - "discovery.type=single-node" # disables bootstrap checks that are enabled when network.host is set to a non-loopback address
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
+        hard: 65536
+    depends_on:
+      - postgres
+    volumes:
+      - ./opensearch-data1:/usr/share/opensearch/data
+      - ./../conf/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+    ports:
+      - 9200:9200
+      - 9600:9600 # required for Performance Analyzer
+    networks:
+      - tv-network
+  
+  opensearch-dashboards:
+    container_name: tv_dev_os_dashboard
+    image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
+    ports:
+      - 5601:5601 # Map host port 5601 to container port 5601
+    expose:
+      - "5601" # Expose port 5601 for web access to OpenSearch Dashboards
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch-node1:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: true
+    networks:
+      - tv-network
+    depends_on:
+      - opensearch-node1
+
+  activatm:
+    build:
+      context: ./../
+      dockerfile: ./docker/Dockerfile
+    depends_on:
+      - redis
+      - postgres
+      - nginx
+      - opensearch-node1
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 1s
+      retries: 10
+    networks:
+      - tv-network
+    ports:
+      - 3050:3050
+      - 5001:5000
+    
+
+volumes:
+  opensearch-data1:
+  postgres:
+
+networks:
+  tv-network:

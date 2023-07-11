@@ -40,7 +40,7 @@ class ConfigMTEngines:
 
   def load(self, conf_file):
     with open(conf_file, 'r') as ymlfile:
-      self.configMT = yaml.load(ymlfile)
+      self.configMT = yaml.full_load(ymlfile)
       self.is_loaded = True
 
   #OrderedDict([('rule-1', {'target': 'es', 'domain': 'GERAL', 'source': 'en', 'script': 'template1.sh'}),
