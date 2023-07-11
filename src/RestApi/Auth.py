@@ -53,11 +53,11 @@ def current_identity_roles():
 
 
 def current_username():
-    return g.oidc_token_info['username']
+    return g.oidc_token_info['preferred_username']
 
 
 def current_userid():
-    return g.oidc_token_info['sub']
+    return g.oidc_token_info['tolkevarav']['userId']
 
 
 def access_token():
@@ -65,12 +65,10 @@ def access_token():
 
 
 def current_institution_id():
-    return '993beb11-169f-4031-9f2a-377beb5e5284'
     return g.oidc_token_info['tolkevarav']['selectedInstitution']['id']
 
 
 def current_institution_name():
-    return 'Dragan\'s Language bureau'
     return g.oidc_token_info['tolkevarav']['selectedInstitution']['name']
 
 

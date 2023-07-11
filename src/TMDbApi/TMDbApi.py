@@ -24,7 +24,7 @@
 #
 import os, sys
 
-from src.RestApi.Auth import current_institution_id
+from RestApi.Auth import current_institution_id
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..'))
 sys.path = [p for p in sys.path if p]
@@ -425,12 +425,15 @@ class TMDbApi:
     new_segments = []
     logging.info("Match segments: {}".format(segments))
     for segment, ter in segments: # This one is for each segment
+      # Commented for now, as it is not clear and when query is running fast, it doesn't work
+      '''
       # Check time
       wait_time  = self.MATCH_TIME[0] if qparams.aut_trans else self.MATCH_TIME[1]
       if timer() - self.timer.ts["match_time_query"] > wait_time:
         if not new_segments: new_segments = segments # make sure we are not returning empty results
         logging.info("Matching segments (1)")
         break
+      '''
 
       # Adjust match % according to filters
       if ter >= qparams.min_match:

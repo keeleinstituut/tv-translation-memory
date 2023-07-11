@@ -31,6 +31,7 @@ from TMDbApi.TMMap.TMMap import TMMap
 from TMDbApi.TMUtils import TMUtils, TMTimer
 from TMDbApi.TMDbQuery import TMDbQuery
 
+from opensearchpy import Q
 from helpers.OpenSearchHelper import OpenSearchHelper
 
 
@@ -309,23 +310,23 @@ class TMMapES(TMMap):
     m_index,swap = self._get_index(source_lang, target_lang)
     if not m_index: return None,None
 
-    query = TMDbQuery(es=self.es, index=m_index, filter=filter)
+    query = TMDbQuery(es=self.es.es, index=m_index, filter=filter)
     return query,swap
 
   def _create_search(self, source_id, source_lang, target_lang):
     m_index,swap = self._get_index(source_lang, target_lang)
     if not m_index: return None,None
-    qfield = "source_id" if not swap else "target_id"
+    qfield = "source_id.keyword" if not swap else "target_id"
 
     search = self.es.search(index=m_index)
-    search.query = self.es.q(name='term', **{qfield: source_id})
+    search.query = Q('term', **{qfield: source_id})
     return search,swap
 
   def _create_search_mindexes(self, source_id, source_lang, target_langs):
     m_indexes = [self._get_index(source_lang, tgt_lang)[0] for tgt_lang in target_langs] # take only m_index, swap is not interested
     search = self.es.search(index=m_indexes)
     # FIXME: search only source_id or target_id according to index direction,  otherwise it might return results from incorect language (having the same id due to exact the same text)
-    search.query = self.es.q(name='term', source_id=source_id) | self.es.q(name='term', target_id=source_id)
+    search.query = Q('term', source_id=source_id) | Q('term', target_id=source_id)
     return search
 
   def _match_pattern(self, text, pattern):
@@ -461,13 +462,33 @@ class TMMapES(TMMap):
       "properties": {
         "domain": {
           "type": "text",
+          "fielddata": True,
           "fields": {
             "keyword": {
               "type": "keyword",
               "ignore_above": 256
             }
-          },
-          "fielddata": True
+          }
+        },
+        "file_name": {
+          "type": "text",
+          "fielddata": True,
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "update_date": {
+          "type": "text",
+          "fielddata": True,
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
         }
       }
     }

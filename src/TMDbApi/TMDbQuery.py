@@ -51,7 +51,7 @@ class TMDbQuery:
     # Build queries
     if isinstance(q, str):
       q = [q]
-    self._build(q, es)
+    self._build(q)
     # Build filter(s)
     if isinstance(filter, dict):
       filter = [filter]
@@ -76,7 +76,7 @@ class TMDbQuery:
     # Count total scan size
     for q, f in zip(self.queries, self.search):
       search = f.query(q)
-      self.num_segs += search[:1].execute().hits.total
+      self.num_segs += search[:1].execute().hits.total['value']
     return self.num_segs
 
   def scan(self):
@@ -117,13 +117,13 @@ class TMDbQuery:
 
     return values
 
-  def _build(self, q_list, es):
+  def _build(self, q_list):
     if not q_list:
       self.queries.append(Q())
       return
     # Build list of queries sorted by match in a decreasing order
     for q in q_list:
-      self.queries.append(es.q("match", text=q))
+      self.queries.append(Q("match", text=q))
 
   def _filter(self, filter, es, index):
     if not filter:

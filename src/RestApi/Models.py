@@ -21,7 +21,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import os
 import re
+import uuid
+import json
 import dateutil
 import datetime
 import logging
@@ -32,9 +35,17 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_oidc import OpenIDConnect
 from Config.Config import G_CONFIG
 
+POSTGRESQL_HOST = G_CONFIG.config['postgresql']['host']
+POSTGRESQL_PORT = G_CONFIG.config['postgresql']['port']
+POSTGRESQL_DB = G_CONFIG.config['postgresql']['db']
+POSTGRESQL_USER = G_CONFIG.config['postgresql']['user']
+POSTGRESQL_PASSWORD = G_CONFIG.config['postgresql']['password']
+
 app = Flask(__name__)
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@postgres/activatm?client_encoding=utf8'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://' + POSTGRESQL_USER + ':' + POSTGRESQL_PASSWORD + '@' \
+                                        + POSTGRESQL_HOST + ':' + str(POSTGRESQL_PORT) + '/' \
+                                        + POSTGRESQL_DB + '?client_encoding=utf8'
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@localhost/activatm?client_encoding=utf8' #For local debugging
 db = SQLAlchemy(app)
 
@@ -43,6 +54,24 @@ app.config['SECRET_KEY'] = 'super-secret'
 app.config['VERSION'] = 1
 app.config['PROPAGATE_EXCEPTIONS'] = True
 app.config['JWT_AUTH_HEADER_PREFIX'] = "Bearer"
+
+keycloak_config = G_CONFIG.config['keycloak']
+
+if not os.path.exists('client_secrets.json'):
+  with open('client_secrets.json', 'w') as f:
+    content = {
+        keycloak_config['client_id']: {
+          "issuer": ''.join([keycloak_config['url'],'realms/',keycloak_config['realm']]),
+          "auth_uri": ''.join([keycloak_config['url'],'realms/',keycloak_config['realm'],'/protocol/openid-connect/auth']),
+          "client_id": keycloak_config['client_id'],
+          "client_secret": keycloak_config['client_secret'],
+          "redirect_uris": keycloak_config['redirect_uris'],
+          "userinfo_uri": ''.join([keycloak_config['url'],'realms/',keycloak_config['realm'],'/protocol/openid-connect/userinfo']),
+          "token_uri": ''.join([keycloak_config['url'],'realms/',keycloak_config['realm'],'/protocol/openid-connect/token']),
+          "token_introspection_uri": ''.join([keycloak_config['url'],'realms/',keycloak_config['realm'],'/protocol/openid-connect/token/introspect'])
+        }
+      }
+    f.write(json.dumps(content, indent=2))
 
 app.config.update({
     'TESTING': True,
@@ -121,13 +150,10 @@ class Users(db.Model):
   def id(self):
     return self.uuid
 
-  keycloak_config = G_CONFIG.config['keycloak']
+  ADMIN = 'admin'
 
-  ADMIN = keycloak_config['admin_user']
-  ADMIN_ID = keycloak_config['admin_uuid']
-
-  def __init__(self, uuid, **kwargs):
-    self.uuid = uuid
+  def __init__(self, **kwargs):
+    self.uuid = uuid.uuid4()
     self.update(**kwargs)
 
   def update(self, **kwargs):
