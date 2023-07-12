@@ -41,10 +41,6 @@ from datetime import timedelta
 from Config.Config import G_CONFIG
 from RestApi.Models import db, app, CRUD, Users
 
-app.config['SECRET_KEY'] = 'super-secret'
-app.config['VERSION'] = 1
-app.config['PROPAGATE_EXCEPTIONS'] = True
-
 # Setup logging
 handler = G_CONFIG.config_logging()
 if handler: app.logger.addHandler(handler)
@@ -65,7 +61,6 @@ celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(app.config)
 
 
-from RestApi.Auth import authenticate, identity, jwt_request_handler, jwt_payload_handler
 from RestApi.TmResource import TmResource, TmBatchQueryResource, TmImportResource, TmExportResource, TmExportFileResource, \
                                 TmGenerateResource, TmMaintainResource, TmPosTagResource, TmCleanResource, \
                                 TmStatsResource, TmUsageStatsResource
@@ -74,12 +69,14 @@ from RestApi.JobsResource import JobsResource
 from RestApi.AdminUi.AdminUi import admin_ui
 from RestApi.SettingsResource import SettingsResource
 from RestApi.TokenResource import TokenResource
+from RestApi.AuthResource import AuthResource
 from RestApi.TagsResource import TagsResource
 
 api = Api(app)
 api_prefix = "/api/v{}".format(app.config['VERSION'])
 # Dummy endpoint to quickly validate JWT token
 api.add_resource(TokenResource, api_prefix + '/token')
+api.add_resource(AuthResource, api_prefix + '/auth')
 # TM endpoint (query, export and import)
 tms_prefix = api_prefix + '/tm'
 api.add_resource(TmResource, tms_prefix)
@@ -115,29 +112,6 @@ api.add_resource(TagsResource, api_prefix + '/tags',
 #api.add_resource(AdminUiResource, '/admin/<path:page>')
 # TODO: serve static resources using nginx. Here used for demo only 
 #api.add_resource(AdminUiAssetsResource, '/admin/assets/<string:type>/<string:asset>')
-
-
-# Authentication end-point
-"""
- @api {post} /auth Authorize user with a username and a password
- @apiVersion 1.0.0
- @apiName Auth
- @apiGroup Authorization
-
- @apiParam {String} username
- @apiParam {String} password
-
- @apiSuccess {String} access_token Authorization token for use it in other endpoints
- @apiError {String} 401 Invalid credentials
-
- @apiExample {curl} Example usage:
- curl -H "Content-Type: application/json" -XPOST http://127.0.0.1:/api/v1/auth -d
- '{ "username": "user1", "password": "abcxy"}'
-"""
-app.config['JWT_AUTH_URL_RULE'] = api_prefix + '/auth'
-app.config['JWT_EXPIRATION_DELTA'] = timedelta(hours=24)
-jwt = JWT(app, authenticate, identity)
-jwt.jwt_payload_handler(jwt_payload_handler)
 
 # TODO: uncomment if needed to pass token via URL parameter
 # jwt.request_handler(jwt_request_handler)

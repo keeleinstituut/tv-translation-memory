@@ -23,10 +23,10 @@
 #
 from flask_restful import Resource, abort, inputs
 
-from Auth import user_permission, PermissionChecker
+from Auth import permission
+
 
 class TokenResource(Resource):
-  decorators = [PermissionChecker(user_permission)]
   """
   @api {get} /token Dummy endpoint, needed to quickly validate token
   @apiVersion 1.0.0
@@ -37,5 +37,6 @@ class TokenResource(Resource):
 
 
   """
+  @permission("user")
   def get(self):
       return {'token': 'valid'}

@@ -24,15 +24,13 @@
 from flask_restful import Resource, abort
 from flask_restful.reqparse import RequestParser
 from celery import shared_task
-from flask_jwt import current_identity, jwt_required
 
-from Auth import admin_permission, user_permission, PermissionChecker
+from Auth import permission, current_identity
 from RestApi.Models import Users
 from JobApi.ESJobApi import ESJobApi
 from JobApi.SparkTaskDispatcher import SparkTaskDispatcher
 
 class JobsResource(Resource):
-  decorators = [jwt_required()]
 
   def __init__(self):
     self.job_api = ESJobApi()
@@ -51,13 +49,14 @@ class JobsResource(Resource):
    @apiError {String} 401 Job doesn't exist
 
   """
+  @permission("user")
   # TODO: accept limit as a parameter
   #@user_permission.require(http_exception=403)
   #@admin_permission.require(http_exception=403)
   def get(self, job_id=None):
     args = self._get_reqparse()
     jobs = []
-    username_filter = current_identity.username if current_identity.role != Users.ADMIN else None
+    username_filter = current_identity().username if current_identity().role != Users.ADMIN else None
     if job_id:
       try:
         job = self.job_api.get_job(job_id)
@@ -89,7 +88,7 @@ class JobsResource(Resource):
    @apiError {String} 401 Job doesn't exist
 
   """
-  @admin_permission.require(http_exception=403)
+  @permission("admin")
   def delete(self, job_id):
     # Setup a job using Celery & ES
     task = self.kill_task.apply_async([job_id])

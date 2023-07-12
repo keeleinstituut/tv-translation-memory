@@ -23,14 +23,15 @@
 #
 from flask_restful import Resource, abort, inputs
 from flask_restful.reqparse import RequestParser
-from flask_jwt import current_identity
 
 
-from RestApi.Models import Users, CRUD
-from Auth import admin_permission, user_permission, PermissionChecker
+from RestApi.Models import app, oidc, Users, CRUD
+from Auth import permission, \
+  current_identity_roles, current_username, current_userid, jwt_request_handler, access_token
+from helpers.KeycloakHelper import keycloak
+
 
 class UsersResource(Resource):
-  decorators = [PermissionChecker(user_permission)]
   """
    @apiDefine UserParams
    @apiParam {String} password User password
@@ -49,24 +50,17 @@ class UsersResource(Resource):
   @apiError {String} 404 User doesn't exist
 
   """
+  @permission("user")
   def get(self, username=None):
-    #identity_loaded.send(current_app._get_current_object(), identity=Identity(current_identity))
     # Non-admin can query only themselves
-    if current_identity.role == "user":
-      if username and username != current_identity.username:
-        abort(403, mesage="Permission denied")
-      else:
-        username = current_identity.username # force to get only current user
-    #  print("AUTH SUCCESS")
-    if username:
-      user = Users.query.get(username)
-      if user:
-        return user.to_dict()
-      else:
-        abort(404, mesage="User {} doesn't exist".format(username))
+    if "admin" in current_identity_roles():
+        return keycloak.get_user_info(username=username)
     else:
-      # List of all users
-      return {'users': [user.to_dict() for user in Users.query.all()]}
+        username = current_username() # force to get only current user
+        if username and username != current_username():
+            abort(403, mesage="Permission denied")
+
+    return keycloak.get_user_info(username=username)
 
   """
   @api {post} /users/<username> Add/update user details
@@ -82,23 +76,25 @@ class UsersResource(Resource):
   @apiError {String} 403 Insufficient permissions
 
   """
-  @admin_permission.require(http_exception=403)
-  def post(self, username):
+  @permission("admin")
+  def post(self):
     args = self._reqparse()
-    user = Users.query.get(username)
-    if username == Users.ADMIN and args.role != Users.ADMIN :
-      abort(403, message="You can't change {} role".format(Users.ADMIN))
-
+    keycloak.add_user(args)
+    keycloak_user_by_username = keycloak.get_user_info(username=args['username'])
+    if not len(keycloak_user_by_username) > 0:
+        abort(500, message="Error creating user")
+    user = Users.query.get(keycloak_user_by_username[0]['id'])
     try:
       if user:
+        keycloak.edit_user(keycloak_user_by_username[0]['id'], args)
         user.update(**args)
         CRUD.update()
       else:
-        user = Users(username, **args)
+        user = Users(keycloak_user_by_username[0]['id'], **args)
         CRUD.add(user)
     except Exception as e:
       abort(500, message=str(e))
-    return {"message" : "User {} added/updated successfully".format(username)}
+    return keycloak_user_by_username[0]
 
   """
     @api {delete} /users/<username> Delete user
@@ -115,39 +111,39 @@ class UsersResource(Resource):
     @apiError {String} 404 User doesn't exist
 
   """
-  @admin_permission.require(http_exception=403)
+  @permission("admin")
   def delete(self, username):
     if username == Users.ADMIN:
       abort(403, message="You can't delete {} user".format(Users.ADMIN))
 
-    user = Users.query.get(username)
+    keycloak_user = keycloak.get_user_info(username=username)
+    user = Users.query.get(keycloak_user[0]['id'])
     if user:
-      try:
-        user.delete_scopes() # First, delete all user scopes
-        CRUD.delete(user)
-      except Exception as e:
-        abort(500, message=str(e))
+        try:
+            user.delete_scopes()  # First, delete all user scopes
+            CRUD.delete(user)
+        except Exception as e:
+            abort(500, message=str(e))
     else:
-      abort(404, mesage="User {} doesn't exist".format(username))
-    return {"message" : "User {} deleted successfully".format(username)}
+        abort(404, mesage="User {} doesn't exist".format(username))
 
+    return keycloak.delete_user(keycloak_user[0]['id'])
 
   def _reqparse(self):
       parser = RequestParser(bundle_errors=True)
-      parser.add_argument(name='password', help="User password")
-      parser.add_argument(name='role', help="User role")
-      parser.add_argument(name='is_active', type=inputs.boolean, help="True if user is active")
-      parser.add_argument(name='token_expires', type=inputs.boolean, help="False if user will get non-expiring token")
-
-
+      parser.add_argument('email', type=str, required=True, help='Email address')
+      parser.add_argument('username', type=str, required=True, help='Username')
+      parser.add_argument('firstName', type=str, required=True, help='First name')
+      parser.add_argument('lastName', type=str, required=True, help='Last name')
+      parser.add_argument('credentials', type=dict, required=True, action="append", help='Credentials')
+      parser.add_argument('enabled', type=bool, required=True, help='Enabled')
+      parser.add_argument('emailVerified', type=bool, required=True, help='Email verified')
       args =  parser.parse_args()
-      if not args["password"]: del args["password"]
 
       return args
 
 
 class UserScopesResource(Resource):
-  decorators = [PermissionChecker(admin_permission)]
   """
    @apiDefine UserParams
    @apiParam {String} password User password
@@ -166,10 +162,11 @@ class UserScopesResource(Resource):
   @apiError {String} 404 User doesn't exist
 
   """
+  @permission("admin")
   def get(self, username):
-    user = Users.query.get(username)
+    user = Users.query.filter_by(username=username).first()
     if user:
-      return user.scopes
+      return {'user_scopes': [scope.to_dict() for scope in user.scopes]}
     else:
       abort(404, mesage="User {} doesn't exist".format(username))
 
@@ -197,11 +194,10 @@ class UserScopesResource(Resource):
   @apiError {String} 404 User doesn't exist
 
   """
+  @permission("admin")
   def post(self, username):
     args = self._post_reqparse()
-    user = Users.query.get(username)
-    if username == Users.ADMIN and args.role != Users.ADMIN :
-      abort(403, message="You can't change {} role".format(Users.ADMIN))
+    user = Users.query.filter_by(username=username).first()
 
     try:
       if user:
@@ -232,10 +228,11 @@ class UserScopesResource(Resource):
     @apiError {String} 404 User doesn't exist
 
   """
+  @permission("admin")
   def delete(self, username):
     args = self._delete_reqparse()
 
-    user = Users.query.get(username)
+    user = Users.query.filter_by(username=username).first()
     if user:
       try:
         scope = user.get_scope(**args)
