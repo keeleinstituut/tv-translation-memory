@@ -24,7 +24,7 @@
 from flask import Response, request
 from flask_restful import Resource, abort, inputs
 from flask_restful.reqparse import RequestParser
-import werkzeug
+from werkzeug.datastructures import FileStorage
 import os
 import dateutil.parser
 import tempfile
@@ -615,7 +615,7 @@ class TmImportResource(TmResource):
 
   def _put_reqparse(self):
     parser = RequestParser()
-    parser.add_argument(name='file', required=True, type=werkzeug.FileStorage, location='files')
+    parser.add_argument(name='file', required=True, type=FileStorage, location='files')
     parser.add_argument(name='tag', required=True,  action='append', help="Translation memories tag is a mandatory option")
     parser.add_argument(name='lang_pair', action='append', help="Language pair to parse from TMX. May supply multiple pairs \ "
                                                "Each pair is a string of 2-letter language codes joined with underscore",
@@ -623,7 +623,7 @@ class TmImportResource(TmResource):
 
                         )
 
-    args =  parser.parse_args()
+    args = parser.parse_args()
     # Store file in a local tmp dir
     tmp_dir = tempfile.mkdtemp(prefix='elastictm')
     os.chmod(tmp_dir, 0o755)
@@ -746,7 +746,7 @@ class TmExportFileResource(TmResource):
   @apiSuccess {File} binary Content of zipped TMX file(s) (if export_id is supplied)
   @apiSuccess {Json} files List of all available exports (if export_id is not supplied)
   @apiExample {curl} Example usage:
-   curl -G "http://127.0.0.1:5000/api/v1/tm/export/files/4235-45454-34343-43434"
+   curl -G "http://127.0.0.1:5000/api/v1/tm/export/file/4235-45454-34343-43434"
    -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU' -X GET
   """
   def get(self, export_id=None):
@@ -774,7 +774,7 @@ class TmExportFileResource(TmResource):
   @apiPermission user
 
   @apiExample {curl} Example usage:
-   curl -XDELETE "http://127.0.0.1:5000/api/v1/tm/export/files/4235-45454-34343-43434"
+   curl -XDELETE "http://127.0.0.1:5000/api/v1/tm/export/file/4235-45454-34343-43434"
    -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU' -X GET
   """
   def delete(self, export_id):

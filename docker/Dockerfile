@@ -1,12 +1,12 @@
-FROM debian:11
-MAINTAINER Pangeanic <info@pangeanic.com>
+FROM python:3.9.17-bullseye
+
 ENV DEBIAN_FRONTEND noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
 RUN apt-get update && apt-get install -y git
 
 # Install packages
-RUN apt-get install -y libxml2-dev libxslt1-dev python3.9-dev python3-bs4 libcurl4-openssl-dev apt-transport-https zip libtercpp-dev
+RUN apt-get install -y libxml2-dev libxslt1-dev python3-bs4 libcurl4-openssl-dev apt-transport-https zip libtercpp-dev
 RUN apt-get install -y libblas-dev liblapack-dev libatlas-base-dev gfortran libssl-dev
 RUN apt-get install -y python3-numpy python3-scipy python3-matplotlib python3-pandas python3-sympy python3-nose
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils software-properties-common iputils-ping
@@ -103,7 +103,9 @@ RUN echo  "#! /bin/bash\n supervisord"  > run.sh
 RUN echo  "#! /bin/bash\n http-server /opt/elastictm/doc --port 3050"  > rundocs.sh
 RUN echo  "#! /bin/bash\n python3 /opt/elastictm/src/RestApi/Api.py"  > runapi.sh
 
-RUN mkdir -p $ELASTICTM/log
+RUN mkdir -p $ELASTICTM/log \
+    && touch $ELASTICTM/log/gunicorn.log \
+    && chmod 666 $ELASTICTM/log/gunicorn.log
 
 # Run Supervisor - responsible to start up & keep alive all services:
 RUN chmod +x run.sh && \

@@ -145,6 +145,16 @@ jwt.jwt_payload_handler(jwt_payload_handler)
 # Admin UI
 #app.register_blueprint(admin_ui)
 
+with app.app_context():
+    # Extensions like Flask-SQLAlchemy now know what the "current" app
+    # is while within this block. Therefore, you can now run........
+    db.create_all()
+
+    # Insert initial admin user
+    if not Users.query.count():
+        admin = Users(Users.ADMIN, password=Users.ADMIN, role=Users.ADMIN)
+        CRUD.add(admin)
+
 if __name__ == '__main__':
     print(os.getcwd())
     stream_handler = logging.StreamHandler()
@@ -153,15 +163,6 @@ if __name__ == '__main__':
     # fix gives access to the gunicorn error log facility
     app.logger.handlers.extend(logging.getLogger("gunicorn.error").handlers)
     # db.init_app(app)
-    with app.app_context():
-    # Extensions like Flask-SQLAlchemy now know what the "current" app
-    # is while within this block. Therefore, you can now run........
-        db.create_all()
-
-        # Insert initial admin user
-        if not Users.query.count():
-            admin = Users(Users.ADMIN, password=Users.ADMIN, role=Users.ADMIN)
-            CRUD.add(admin)
     # app.run(host='0.0.0.0', debug=True, port=5002) #For local debugging
     app.run(host='0.0.0.0', debug=True)
 
