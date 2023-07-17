@@ -121,4 +121,8 @@ CMD gunicorn \
     --bind 0.0.0.0:5000 \
     --workers $GUNICORN_WORKERS \
     --bind unix:/tmp/activatm.sock \
+    --error-logfile $ELASTICTM/log/gunicorn.log \
+    --access-logfile $ELASTICTM/log/gunicorn.log \
+    --capture-output \
+    --log-level INFO \
      Api:app
