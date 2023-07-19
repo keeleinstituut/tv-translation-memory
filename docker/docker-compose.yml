@@ -15,6 +15,11 @@ services:
     volumes:
        - ./postgres:/data/postgres
        - ./pgsql/1_schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "activatm"]
+      interval: 5s
+      timeout: 1s
+      retries: 10
     restart: unless-stopped
 
   redis:
@@ -24,6 +29,11 @@ services:
       - 6379:6379
     networks:
       - tv-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      interval: 5s
+      timeout: 1s
+      retries: 10
 
   nginx:
     container_name: tv_web
@@ -71,6 +81,12 @@ services:
       - "DISABLE_INSTALL_DEMO_CONFIG=true" # disables execution of install_demo_configuration.sh bundled with security plugin, which installs demo certificates and security configurations to OpenSearch
       - "DISABLE_SECURITY_PLUGIN=true" # disables security plugin entirely in OpenSearch by setting plugins.security.disabled: true in opensearch.yml
       - "discovery.type=single-node" # disables bootstrap checks that are enabled when network.host is set to a non-loopback address
+    healthcheck:
+      test: ["CMD", "curl", "-f", "0.0.0.0:9200/_cluster/health?wait_for_status=yellow&timeout=5s"]
+      start_period: 45s
+      interval: 10s
+      timeout: 6s
+      retries: 10
     ulimits:
       memlock:
         soft: -1
@@ -109,21 +125,25 @@ services:
       context: ./../
       dockerfile: ./docker/Dockerfile
     depends_on:
-      - redis
-      - postgres
-      - nginx
-      - opensearch-node1
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 1s
-      retries: 10
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      opensearch-node1:
+        condition: service_healthy
+    volumes:
+      - ./../log:/opt/elastictm/log
     networks:
       - tv-network
     ports:
-      - 3050:3050
       - 5001:5000
-    
+
+  apidoc:
+    build:
+      context: ./../
+      dockerfile: ./docker/apidoc/Dockerfile
+    ports:
+      - "3050:3050"
 
 volumes:
   opensearch-data1:

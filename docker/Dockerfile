@@ -1,120 +1,118 @@
 FROM python:3.9.17-bullseye
 
+ARG TARGETARCH
 ENV DEBIAN_FRONTEND noninteractive
-
-RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
-RUN apt-get update && apt-get install -y git
-
-# Install packages
-RUN apt-get install -y libxml2-dev libxslt1-dev python3-bs4 libcurl4-openssl-dev apt-transport-https zip libtercpp-dev
-RUN apt-get install -y libblas-dev liblapack-dev libatlas-base-dev gfortran libssl-dev
-RUN apt-get install -y python3-numpy python3-scipy python3-matplotlib python3-pandas python3-sympy python3-nose
-RUN apt-get update && apt-get install -y --no-install-recommends apt-utils software-properties-common iputils-ping
-# Install Java
-RUN apt-get install -y default-jre default-jdk
-
-# Install Ruby
-RUN apt-get install -y ruby ruby-dev
-
-# Install & configure Api doc generator
-RUN apt-get install -y curl
-RUN curl -sL https://deb.nodesource.com/setup_16.x | bash -
-RUN apt-get install -y nodejs
-RUN npm install apidoc -g
-
-# Install & configure logrotate
-RUN apt-get install -y logrotate
-
-# Install & setup Supervisord
-RUN apt-get install -y supervisor
-
-RUN apt-get update \
-    && apt-get install -y python3-pip build-essential
-
-############################ Clone the repo ##############################
 ENV ELASTICTM /opt/elastictm
 ENV ELASTICTM_VOLUME /elastictm
+ENV GUNICORN_WORKERS 4
+VOLUME $ELASTICTM_VOLUME
 
-# Clone the conf files into the docker container
-RUN echo " Cloning----"
-RUN echo " ==== ...."
-COPY . $ELASTICTM
-WORKDIR $ELASTICTM
-RUN cd $ELASTICTM
-
-#################################################################
-
-# Install Python dependencies
-RUN pip3 install -r requirements.txt
-
-
-RUN apt-get install -y wget
-RUN cd /tmp && \
-    wget http://www.phontron.com/kytea/download/kytea-0.4.7.tar.gz && \
-    tar xzf kytea-0.4.7.tar.gz && \
-    cd /tmp/kytea-0.4.7/ && \
-    # ./configure && \ # This is for x86
-    ./configure --build=aarch64-unknown-linux-gnu && \
-    make && \
-    make install && \
-    pip3 install kytea
-
-# Download universtal POS tagset
-RUN python3 -m nltk.downloader universal_tagset stopwords punkt
-RUN mv /root/nltk_data /usr/share/nltk_data
-
-RUN apt-get install -y nano libboost-all-dev
-
-RUN cd tools/pytercpp &&  \
-    git clone https://github.com/cservan/tercpp.git
-# Copy universal tag map to NTLK data directory
-RUN cp tools/universal-pos-tags-master/*-treetagger-pg.map /usr/share/nltk_data/taggers/universal_tagset/
-
-
-# Build & install pytercpp
-RUN cd tools/pytercpp && \
-    python3 setup.py build install
-
-# Build & generate pragmatic-segmenter
-RUN cd tools/pragmatic_segmenter-master && \
-    gem install pragmatic_segmenter
-
-# Generate API documentation
-RUN cd src/RestApi/ && \
-    node --harmony `which apidoc` -i . -o ../../doc
-
-# Setup UWSGI
-RUN mkdir -p $ELASTICTM_VOLUME/log/elastictm && \
-    touch $ELASTICTM_VOLUME/log/elastictm/gunicorn.log $ELASTICTM_VOLUME/log/elastictm/celery-worker.log
-RUN chmod -R oag+w $ELASTICTM_VOLUME/log/elastictm
-
-#################### Copy service configurations ############
-RUN cp conf/logrotate.conf /etc/logrotate.d/activatm
-
-# Setup supervisord
-RUN cp conf/supervisord.conf /etc/supervisor/conf.d/activatm.conf
-
-RUN cp docker/wait-for-postgres.sh ~/
-# Create activatm user (Celery is run under it)
+# LEGACY: This user never appears to be used for anything.
 RUN useradd -ms /bin/bash activatm
 
-RUN npm install http-server -g
-RUN echo  "#! /bin/bash\n supervisord"  > run.sh
-RUN echo  "#! /bin/bash\n http-server /opt/elastictm/doc --port 3050"  > rundocs.sh
-RUN echo  "#! /bin/bash\n python3 /opt/elastictm/src/RestApi/Api.py"  > runapi.sh
+# LEGACY: Due to the log files remaining empty, Logrotate will be passive in the container.
+COPY conf/logrotate.conf /etc/logrotate.d/activatm
 
-RUN mkdir -p $ELASTICTM/log \
-    && touch $ELASTICTM/log/gunicorn.log \
-    && chmod 666 $ELASTICTM/log/gunicorn.log
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      libboost-all-dev=1.74.0.3 \
+      libtercpp-dev=0.6.2+svn46-1.1+b1 \
+      ruby=1:2.7+2 \
+      ruby-dev=1:2.7+2 \
+      zip=3.0-12 \
+      # LEGACY: The following packages MIGHT not be needed.
+      # Either (a) they’re installed in the base image or (b) the application does not explicitly use them.
+      apt-transport-https=2.2.4 \
+      apt-utils=2.2.4 \
+      build-essential=12.9 \
+      curl=7.74.0-1.3+deb11u7 \
+      default-jdk=2:1.11-72 \
+      default-jre=2:1.11-72 \
+      gfortran=4:10.2.1-1 \
+      git=1:2.30.2-1+deb11u2 \
+      iputils-ping=3:20210202-1 \
+      libatlas-base-dev=3.10.3-10 \
+      libblas-dev=3.9.0-3 \
+      libcurl4-openssl-dev=7.74.0-1.3+deb11u7 \
+      liblapack-dev=3.9.0-3 \
+      libssl-dev=1.1.1n-0+deb11u5 \
+      libxml2-dev=2.9.10+dfsg-6.7+deb11u4 \
+      libxslt1-dev=1.1.34-4+deb11u1 \
+      logrotate=3.18.0-2+deb11u1 \
+      nano=5.4-2+deb11u2 \
+      python3-bs4=4.9.3-1 \
+      python3-matplotlib=3.3.4-1 \
+      python3-nose=1.3.7-7 \
+      python3-numpy=1:1.19.5-1 \
+      python3-pandas=1.1.5+dfsg-2 \
+      python3-pip=20.3.4-4+deb11u1 \
+      python3-scipy=1.6.0-2 \
+      python3-sympy=1.7.1-3 \
+      software-properties-common=0.96.20.2-2.1 \
+      wget=1.21-1+deb11u1
 
-# Run Supervisor - responsible to start up & keep alive all services:
-RUN chmod +x run.sh && \
-    chmod +x rundocs.sh && \
-    chmod +x runapi.sh && \
-    chmod 777 $ELASTICTM/log
+# LEGACY: The rubygem seems never used -- instead, source code from tools/pragmatic_segmenter-master is executed.
+RUN gem install pragmatic_segmenter -v 0.3.23
 
-ENTRYPOINT ["./run.sh"]
+# Download and install Kytea
+WORKDIR /tmp
+RUN wget https://www.phontron.com/kytea/download/kytea-0.4.7.tar.gz && \
+    # TODO: Verify checksum before continuing?
+    tar -xzf kytea-0.4.7.tar.gz
+WORKDIR /tmp/kytea-0.4.7
+RUN if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
+        then ./configure --build=aarch64-unknown-linux-gnu; \
+        else ./configure; \
+    fi && \
+    make && \
+    make install && \
+    ldconfig
 
-EXPOSE 3050
-EXPOSE 5000
-VOLUME $ELASTICTM_VOLUME
+# Install Python dependencies
+WORKDIR /tmp
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# If running on ARM architecture, download, build and install Mykytea-python from source (see https://github.com/chezou/Mykytea-python/pull/24)
+WORKDIR /tmp/Mykytea-python
+RUN if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
+        then \
+            apt-get install -y --no-install-recommends swig=4.0.2-1 && \
+            git clone https://github.com/chezou/Mykytea-python.git . && \
+            git checkout 3a2818e && \
+            # TODO: Verify checksum before continuing?
+            make && \
+            make install; \
+    fi
+
+# Download universal POS tagset
+RUN python -m nltk.downloader -d /usr/share/nltk_data universal_tagset stopwords punkt
+
+# Copy universal tag map to NTLK data directory
+COPY tools/universal-pos-tags-master/*-treetagger-pg.map /usr/share/nltk_data/taggers/universal_tagset/
+
+# Download, build and install Tercpp with custom monkey patching
+WORKDIR $ELASTICTM/tools/pytercpp
+COPY tools/pytercpp .
+RUN git clone https://github.com/cservan/tercpp.git && \
+    git -C tercpp checkout cef1e60 && \
+    # TODO: Verify checksum before continuing?
+    python setup.py build install
+
+COPY docker/wait-for-postgres.sh ~/
+
+COPY . $ELASTICTM
+
+# Start Gunicorn
+USER www-data
+WORKDIR $ELASTICTM/src/RestApi
+CMD gunicorn \
+    -m 007 \
+    --bind 0.0.0.0:5000 \
+    --workers $GUNICORN_WORKERS \
+    --bind unix:/tmp/activatm.sock \
+    --error-logfile $ELASTICTM/log/gunicorn.log \
+    --access-logfile $ELASTICTM/log/gunicorn.log \
+    --capture-output \
+    --log-level INFO \
+     Api:app
