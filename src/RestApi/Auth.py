@@ -33,9 +33,13 @@ import datetime
 
 import logging
 
+import json
+import urllib.request
+import jwt
+from jwt import PyJWKClient
 from RestApi.Models import Tags
 
-from RestApi.Models import app, oidc, Users, CRUD
+from RestApi.Models import app, CRUD
 from flask import current_app, g
 
 # Admin permission requires admin role
@@ -49,11 +53,11 @@ def current_identity():
 
 
 def current_identity_roles():
-    return g.oidc_token_info['realm_access']['roles']
+    return g.oidc_token_info['tolkevarav']['privileges']
 
 
 def current_username():
-    return g.oidc_token_info['preferred_username']
+    return g.oidc_token_info['tolkevarav']['forename'] + ' ' + g.oidc_token_info['tolkevarav']['surname']
 
 
 def current_userid():
@@ -72,16 +76,38 @@ def current_institution_name():
     return g.oidc_token_info['tolkevarav']['selectedInstitution']['name']
 
 
+def get_jwks_url(issuer_url):
+  well_known_url = issuer_url + "/.well-known/openid-configuration"
+  with urllib.request.urlopen(well_known_url) as response:
+    well_known = json.load(response)
+  if not 'jwks_uri' in well_known:
+    raise Exception('jwks_uri not found in OpenID configuration')
+  return well_known['jwks_uri']
+
+
+def decode_and_validate_token(token):
+  unvalidated = jwt.decode(token, options={"verify_signature": False})
+  jwks_url = get_jwks_url(unvalidated['iss'])
+  jwks_client = jwt.PyJWKClient(jwks_url)
+  header = jwt.get_unverified_header(token)
+  key = jwks_client.get_signing_key(header["kid"]).key
+  return jwt.decode(token, key, [header["alg"]], audience=unvalidated['aud'])
+
+
 def permission(*roles):
     def decorator(func):
         @wraps(func)
-        @oidc.accept_token(require_token=True, render_errors=False)
         def decorated_function(*args, **kwargs):
-            token_info = g.oidc_token_info
-            if token_info and 'realm_access' in token_info and 'roles' in token_info['realm_access']:
-                user_roles = token_info['realm_access']['roles']
+            token = jwt_request_handler()
+            token_info = decode_and_validate_token(token)
+
+            if token_info and 'tolkevarav':
+                privileges = token_info['tolkevarav']['privileges']
+                if len(roles) == 0:
+                    g.oidc_token_info = token_info
+                    return func(*args, **kwargs)
                 for role in roles:
-                    if role not in user_roles:
+                    if role not in privileges:
                         abort(403, message="You don't have sufficient permissions for this operation")
                 g.oidc_token_info = token_info
                 return func(*args, **kwargs)
@@ -91,8 +117,6 @@ def permission(*roles):
         return decorated_function
 
     return decorator
-
-from RestApi.Models import Users
 
 # Check user scope (language pair, domain, usage limit)
 class UserScopeChecker:

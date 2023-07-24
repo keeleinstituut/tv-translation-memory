@@ -124,11 +124,6 @@ with app.app_context():
     # is while within this block. Therefore, you can now run........
     db.create_all()
 
-    # Insert initial admin user
-    if not Users.query.count():
-        admin = Users(Users.ADMIN, password=Users.ADMIN, role=Users.ADMIN)
-        CRUD.add(admin)
-
 if __name__ == '__main__':
     print(os.getcwd())
     stream_handler = logging.StreamHandler()
