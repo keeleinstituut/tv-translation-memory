@@ -10,8 +10,18 @@ VOLUME $ELASTICTM_VOLUME
 # LEGACY: This user never appears to be used for anything.
 RUN useradd -ms /bin/bash activatm
 
+# LEGACY: The volume at /elastictm and the logs contained in it appear to never get used/modified.
+RUN mkdir -p $ELASTICTM_VOLUME/log/elastictm && \
+    touch $ELASTICTM_VOLUME/log/elastictm/gunicorn.log $ELASTICTM_VOLUME/log/elastictm/celery-worker.log && \
+    chmod -R oag+w $ELASTICTM_VOLUME/log/elastictm
 # LEGACY: Due to the log files remaining empty, Logrotate will be passive in the container.
 COPY conf/logrotate.conf /etc/logrotate.d/activatm
+
+# Create directory/files for Gunicorn logs
+WORKDIR $ELASTICTM/log
+RUN chmod 777 . && \
+    touch gunicorn.log && \
+    chmod 666 gunicorn.log
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
