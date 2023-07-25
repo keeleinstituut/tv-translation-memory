@@ -24,7 +24,7 @@
 #
 import os, sys
 
-from RestApi.Auth import current_institution_id
+from RestApi.Models import current_institution_id
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..'))
 sys.path = [p for p in sys.path if p]

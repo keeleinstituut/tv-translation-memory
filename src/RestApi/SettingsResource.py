@@ -24,8 +24,8 @@
 from flask_restful import Resource, abort, inputs
 from flask_restful.reqparse import RequestParser
 
-from RestApi.Models import Users, UserSettings, CRUD
-from Auth import permission, current_identity
+from RestApi.Models import UserSettings, CRUD, current_identity
+from Auth import permission
 from TMPreprocessor.TMRegExpPreprocessor import TMRegExpPreprocessor
 
 class SettingsResource(Resource):

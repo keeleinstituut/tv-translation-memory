@@ -28,12 +28,11 @@ import json
 import dateutil
 import datetime
 import logging
-from flask import Flask
+from flask import Flask, g
 from flask_sqlalchemy import SQLAlchemy
 #from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from Config.Config import G_CONFIG
-
 
 POSTGRESQL_HOST = G_CONFIG.config['postgresql']['host']
 POSTGRESQL_PORT = G_CONFIG.config['postgresql']['port']
@@ -56,6 +55,31 @@ app.config['PROPAGATE_EXCEPTIONS'] = True
 app.config['JWT_AUTH_HEADER_PREFIX'] = "Bearer"
 
 keycloak_config = G_CONFIG.config['keycloak']
+
+
+
+def current_identity():
+    return g.oidc_token_info['tolkevarav']
+
+
+def current_identity_roles():
+    return g.oidc_token_info['tolkevarav']['privileges']
+
+
+def current_username():
+    return g.oidc_token_info['tolkevarav']['forename'] + ' ' + g.oidc_token_info['tolkevarav']['surname']
+
+
+def current_userid():
+    return g.oidc_token_info['tolkevarav']['userId']
+
+
+def current_institution_id():
+    return g.oidc_token_info['tolkevarav']['selectedInstitution']['id']
+
+
+def current_institution_name():
+    return g.oidc_token_info['tolkevarav']['selectedInstitution']['name']
 
 
 # Class to add, update and delete data via SQLALchemy sessions
@@ -103,7 +127,7 @@ class CRUD:
 
 class UserScopes(db.Model):
   id = db.Column(db.Integer, primary_key=True)
-  user_uuid = db.Column(db.Text, db.ForeignKey('users.uuid'))
+  user_uuid = db.Column(db.Text)
 
   # Permission patterns (list of wildcards)
   lang_pairs = db.Column(db.Text)
@@ -123,8 +147,8 @@ class UserScopes(db.Model):
   # Scope creation date
   created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
-  def __init__(self, user_uuid):
-    self.user_uuid = user_uuid
+  def __init__(self):
+    self.user_uuid = current_userid()
 
   def to_dict(self):
     return CRUD.to_dict(self)
@@ -140,41 +164,51 @@ class UserScopes(db.Model):
 
   # Add/update user scope
   def update_scope(self, **kwargs):
-    if 'id' in kwargs and kwargs['id']:
-      scope = UserScopes.query.get(kwargs['id'])
-      if not scope or scope.user_uuid != self.uuid: return None
-    else:
-      scope = UserScopes(self.uuid)
+    with app.app_context():
+      if 'id' in kwargs and kwargs['id']:
+        scope = UserScopes.query.get(kwargs['id'])
+        if not scope or scope.user_uuid != self.user_uuid: return None
+      else:
+        scope = UserScopes(self.user_uuid)
 
-    for key,value in kwargs.items():
-      if key == "tags":
-        key = "domains" # keep backward compatitbility for now
-      elif not value:
-        continue
-      if re.search('_date$', key):  # convert string to datetime
-        value = dateutil.parser.parse(value)
-      if hasattr(scope, key): setattr(scope, key, value)
-    return scope
+      for key,value in kwargs.items():
+        if key == "tags":
+          key = "domains" # keep backward compatitbility for now
+        elif not value:
+          continue
+        if re.search('_date$', key):  # convert string to datetime
+          value = dateutil.parser.parse(value)
+        if hasattr(scope, key): setattr(scope, key, value)
+      return scope
 
   def get_scope(self, id):
-    scope = UserScopes.query.get(id)
-    if not scope or scope.user_uuid != self.uuid:
-      return None
-    return scope
+    with app.app_context():
+      scope = UserScopes.query.get(id)
+      if not scope or scope.user_uuid != self.user_uuid:
+        return None
+      return scope
+
+  def get_scope_by_user_id(self):
+    with app.app_context():
+      scope = UserScopes.query.filter_by(user_uuid=self.user_uuid).first()
+      if not scope or scope.user_uuid != current_userid():
+        return None
+      return scope
 
   def delete_scopes(self):
-    UserScopes.query.filter_by(user_uuid = self.uuid).delete()
+    with app.app_context():
+      UserScopes.query.filter_by(user_uuid=self.user_uuid).delete()
 
 
 class UserSettings(db.Model):
   id = db.Column(db.Integer, primary_key=True)
 
-  user_uuid = db.Column(db.Text, db.ForeignKey('users.uuid'))
+  user_uuid = db.Column(db.Text)
   # Regular expressions to apply (separated with comma)
   regex = db.Column(db.Text)
 
-  def __init__(self, user_uuid):
-    self.user_uuid = user_uuid
+  def __init__(self):
+    self.user_uuid = current_userid()
 
   def to_dict(self):
     return CRUD.to_dict(self)

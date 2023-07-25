@@ -25,9 +25,8 @@ from flask_restful import Resource, abort, inputs
 from flask_restful.reqparse import RequestParser
 
 
-from RestApi.Models import app, Users, CRUD
-from Auth import permission, \
-  current_identity_roles, current_username, current_userid, jwt_request_handler, access_token
+from RestApi.Models import app, CRUD, current_identity_roles, current_userid, current_username
+from Auth import permission
 from helpers.KeycloakHelper import keycloak
 
 

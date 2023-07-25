@@ -25,8 +25,8 @@ from flask_restful import Resource, abort
 from flask_restful.reqparse import RequestParser
 from celery import shared_task
 
-from Auth import permission, current_identity
-from RestApi.Models import Users
+from Auth import permission
+from Models import current_identity
 from JobApi.ESJobApi import ESJobApi
 from JobApi.SparkTaskDispatcher import SparkTaskDispatcher
 

@@ -36,44 +36,17 @@ import logging
 import json
 import urllib.request
 import jwt
-from jwt import PyJWKClient
-from RestApi.Models import Tags
-
-from RestApi.Models import app, CRUD
 from flask import current_app, g
+
+from src.RestApi.Models import UserScopes, current_userid
 
 # Admin permission requires admin role
 admin_permission = Permission(RoleNeed('admin'))
 # User permission requires either admin or user role
 user_permission = Permission(RoleNeed('user')).union(admin_permission)
 
-
-def current_identity():
-    return Users.query.filter_by(uuid=current_userid()).first()
-
-
-def current_identity_roles():
-    return g.oidc_token_info['tolkevarav']['privileges']
-
-
-def current_username():
-    return g.oidc_token_info['tolkevarav']['forename'] + ' ' + g.oidc_token_info['tolkevarav']['surname']
-
-
-def current_userid():
-    return g.oidc_token_info['tolkevarav']['userId']
-
-
 def access_token():
     return jwt_request_handler()
-
-
-def current_institution_id():
-    return g.oidc_token_info['tolkevarav']['selectedInstitution']['id']
-
-
-def current_institution_name():
-    return g.oidc_token_info['tolkevarav']['selectedInstitution']['name']
 
 
 def get_jwks_url(issuer_url):
@@ -123,22 +96,21 @@ class UserScopeChecker:
 
   @staticmethod
   def check(lang_pair, domain, is_update=False, is_import=False, is_export=False):
-    user = current_identity()
-    status = UserScopeChecker._check(user, "_".join(lang_pair), domain, is_update, is_import, is_export)
+    status = UserScopeChecker._check("_".join(lang_pair), domain, is_update, is_import, is_export)
     if not status:
       logging.info(
-        "UserScopeChecker: access denied to {}, language pair: {}, domain: {}, update: {}".format(user.id,
+        "UserScopeChecker: access denied to {}, language pair: {}, domain: {}, update: {}".format(current_userid(),
                                                                                                        lang_pair,
                                                                                                        domain,
                                                                                                        is_update))
       return False
-    logging.info("UserScopeChecker: authorized access to: {}, language pair: {}, domain: {}, update: {}".format(user.id, lang_pair, domain, is_update))
+    logging.info("UserScopeChecker: authorized access to: {}, language pair: {}, domain: {}, update: {}".format(current_userid(), lang_pair, domain, is_update))
     return True
 
   @staticmethod
   def filter_lang_pairs(lp_str_list, allow_reverse=False): # for ex. ['en_es', 'en_ar']
-    user = current_identity()
-    if not user.scopes:
+    user_scopes = UserScopes()
+    if not user_scopes.get_scope_by_user_id():
       # no scope defined, all pairs are accessible
       return lp_str_list
       #if user.role == Users.ADMIN:
@@ -147,7 +119,7 @@ class UserScopeChecker:
       #  return []
 
     lp_set = set()
-    for scope in user.scopes:
+    for scope in user_scopes.get_scope_by_user_id():
       if not UserScopeChecker._is_valid(scope): continue
       for lp in lp_str_list:
         if UserScopeChecker._check_pattern(scope.lang_pairs, lp):
@@ -162,15 +134,12 @@ class UserScopeChecker:
   @staticmethod
   def filter_domains(domains, lp=None, key_fn=lambda k: k, allow_unspecified=True):
     if not domains: domains = []
-    user = current_identity()
-    if not user.scopes:
-      if user.role == Users.ADMIN:
-        return domains # no scope defined, all pairs are accessible
-      else:
+    user_scopes = UserScopes()
+    if not user_scopes.get_scope_by_user_id():
         return [d for d in domains if d["type"] == "public" or allow_unspecified and d["type"] == "unspecified" ] # return only public and unspecified tags
 
     domain_list = list()
-    for scope in user.scopes:
+    for scope in user_scopes.get_scope_by_user_id():
       if not UserScopeChecker._is_valid(scope): continue
       if lp and not UserScopeChecker._check_pattern(scope.lang_pairs, lp): continue
       for d in domains :
@@ -184,16 +153,17 @@ class UserScopeChecker:
 
 
   @staticmethod
-  def _check(user, lang_pair_str, domain_list, is_update, is_import, is_export):
-    if not user.scopes or not domain_list:
+  def _check(lang_pair_str, domain_list, is_update, is_import, is_export):
+    user_scopes = UserScopes()
+    if not user_scopes.get_scope_by_user_id() or not domain_list:
       # Deny actions
-      if current_identity().role != Users.ADMIN  and (is_update or is_import or is_export): return False
+      if is_update or is_import or is_export: return False
       return True
 
     today = datetime.date.today()
 
     found = False
-    for scope in user.scopes:
+    for scope in user_scopes.get_scope_by_user_id():
       # Check for expired scope
       if scope.start_date and today < scope.start_date \
         or scope.end_date and today > scope.end_date: continue
@@ -265,13 +235,3 @@ def jwt_request_handler():
       raise JWTError('Invalid JWT header', 'Token contains spaces')
 
     return parts[1]
-
-def jwt_payload_handler(identity):
-  payload = _default_jwt_payload_handler(identity)
-  user = Users.query.filter(Users.username == payload['identity']).scalar()
-  # If user has a normal token (with expiration date), handle as usual
-  # Also, force admin user to have expiring token for security reasons
-  if not user or user.token_expires or user.role == Users.ADMIN: return payload
-  # Put maximal datetime as a timestamp to make non-expiring token
-  payload['exp'] = datetime.datetime.max
-  return payload

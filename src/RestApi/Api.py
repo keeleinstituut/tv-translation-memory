@@ -39,7 +39,7 @@ from celery import Celery
 from datetime import timedelta
 
 from Config.Config import G_CONFIG
-from RestApi.Models import db, app, CRUD, Users
+from RestApi.Models import db, app, CRUD
 
 # Setup logging
 handler = G_CONFIG.config_logging()

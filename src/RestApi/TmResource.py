@@ -54,8 +54,8 @@ from TMDbApi.TMExport import TMExport
 from TMOutputer.TMOutputerMoses import TMOutputerMoses
 from TMDbApi.TMQueryLogger import TMQueryLogger
 
-from Auth import UserScopeChecker, permission, current_identity, current_institution_id
-from RestApi.Models import Users, Tags
+from Auth import UserScopeChecker, permission
+from RestApi.Models import Tags, current_identity, current_institution_id
 
 # Search/update/delete segments
 class TmResource(Resource):
@@ -287,7 +287,7 @@ class TmResource(Resource):
    @apiParam {String} tag Translation unit tag.
    @apiParam {String} [file_name] File name (or source name)
   """
-  @permission("user")
+  @permission()
   def post(self):
     args = self._post_reqparse().parse_args()
 

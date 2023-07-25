@@ -45,7 +45,7 @@ class TagsResource(Resource):
   @apiError {String} 403 Insufficient permissions
   
   """
-  @permission("user")
+  @permission()
   def get(self, tag_id=None):
     tags = []
     if tag_id:
@@ -81,7 +81,7 @@ class TagsResource(Resource):
   @apiError {String} 403 Insufficient permissions
 
   """
-  @permission("admin")
+  @permission("ADD_TAG", "EDIT_TAG")
   def post(self, tag_id):
     args = self._reqparse()
     tag = Tags.query.get(tag_id)
@@ -119,7 +119,7 @@ class TagsResource(Resource):
   @apiError {String} 404 Tag doesn't exist
 
   """
-  @permission("admin")
+  @permission("DELETE_TAG")
   def delete(self, tag_id):
     tag = Tags.query.get(tag_id)
     if tag:
