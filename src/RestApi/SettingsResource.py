@@ -38,19 +38,17 @@ class SettingsResource(Resource):
   @apiGroup Settings
   @apiUse Header
   @apiPermission user
-
-
   """
-  @permission("user")
+  @permission()
   def get(self):
-    user = Users.query.get(current_identity().id)
-    if user:
-      out = {'settings' : []}
-      if user.settings:
-        out['settings'] = user.settings[0].regex
-      return out
-    else:
-      abort(500, mesage="User {} doesn't exist".format(current_identity().id))
+    user_settings = UserSettings.query.filter_by(user_uuid=current_identity()['id']).all()
+    if not user_settings:
+        abort(404, mesage="User settings doesn't exist")
+
+    result = []
+    for setting in user_settings:
+      result.append(setting.to_dict())
+    return result
 
 
   """
@@ -61,25 +59,20 @@ class SettingsResource(Resource):
   @apiUse Header
   @apiPermission user
   """
-  @permission("user")
+  @permission()
   def put(self):
     args = self._put_reqparse()
-    user = Users.query.get(current_identity().id)
-    if not user:
-      abort(500, mesage="User {} doesn't exist".format(current_identity().id))
-
-    settings = user.settings
-    if settings: settings = settings[0]
+    settings = UserSettings.query.filter_by(user_uuid=current_identity()['id']).first()
 
     if not settings:
-      settings = UserSettings(current_identity().id)
+      settings = UserSettings()
       CRUD.add(settings)
     if args.regex and args.regex.lower() == 'none':
       settings.regex = ''
     else:
       settings.regex = args.regex
       if not self.regex_pp.validate_pipe(settings.regex.split(',')):
-        abort(400, mesage="Invalid regular expression(s). Possible values (joined with comman) are: {} ".format(TMRegExpPreprocessor.regexp.keys()))
+        abort(400, mesage="Invalid regular expression(s). Possible values (joined with comman) are: {} ".format(settings.regex))
 
     CRUD.update()
 

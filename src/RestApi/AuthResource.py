@@ -62,10 +62,9 @@ class AuthResource(Resource):
    '{ "username": "user1", "password": "abcxy"}'
   """
   def post(self):
-    args = self._reqparse_username_password()
-    username = args["username"]
-    password = args["password"]
-    return keycloak.get_token(username, password)
+    args = self._reqparse_login()
+    id_code = args["id_code"]
+    return keycloak.get_token(id_code)
 
   # Authentication end-point
   """
@@ -92,13 +91,11 @@ class AuthResource(Resource):
     refresh_token = args["refresh_token"]
     return keycloak.refresh_token(refresh_token)
 
-  def _reqparse_username_password(self):
+  def _reqparse_login(self):
       parser = RequestParser(bundle_errors=True)
-      parser.add_argument(name='username', help="User name")
-      parser.add_argument(name='password', help="User password")
+      parser.add_argument(name='id_code', help="Id Code")
 
       args =  parser.parse_args()
-      if not args["password"]: del args["password"]
 
       return args
 

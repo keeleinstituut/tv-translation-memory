@@ -113,10 +113,6 @@ class UserScopeChecker:
     if not user_scopes.get_scope_by_user_id():
       # no scope defined, all pairs are accessible
       return lp_str_list
-      #if user.role == Users.ADMIN:
-      #  return lp_str_list  # no scope defined, all pairs are accessible
-      #else:
-      #  return []
 
     lp_set = set()
     for scope in user_scopes.get_scope_by_user_id():

@@ -37,6 +37,6 @@ class TokenResource(Resource):
 
 
   """
-  @permission("user")
+  @permission()
   def get(self):
       return {'token': 'valid'}

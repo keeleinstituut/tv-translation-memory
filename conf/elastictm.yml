@@ -15,10 +15,10 @@ opensearch:
 keycloak:
   grant_type: password
   client_id: web
-  client_secret: JIczLfBIZzoGM6Mmcnnp0tfpmUkDEc76
   url: https://sso.dev.tolkevarav.eki.ee/ # http://127.0.0.1:8180/
   realm: tolkevarav-dev
   redirect_uris: ["http://127.0.0.1:5000/*"]
+  institution_id: '993beb11-169f-4031-9f2a-377beb5e5284'
 
 postgresql:
   host: postgres # localhost

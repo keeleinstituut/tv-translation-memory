@@ -49,14 +49,14 @@ class JobsResource(Resource):
    @apiError {String} 401 Job doesn't exist
 
   """
-  @permission("user")
+  @permission()
   # TODO: accept limit as a parameter
   #@user_permission.require(http_exception=403)
   #@admin_permission.require(http_exception=403)
   def get(self, job_id=None):
     args = self._get_reqparse()
     jobs = []
-    username_filter = current_identity().username if current_identity().role != Users.ADMIN else None
+    username_filter = current_identity()['username']
     if job_id:
       try:
         job = self.job_api.get_job(job_id)
@@ -88,7 +88,7 @@ class JobsResource(Resource):
    @apiError {String} 401 Job doesn't exist
 
   """
-  @permission("admin")
+  @permission()
   def delete(self, job_id):
     # Setup a job using Celery & ES
     task = self.kill_task.apply_async([job_id])

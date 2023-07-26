@@ -75,7 +75,7 @@ class TMMonoLing:
     index = TMUtils.lang2es_index(lang)
     if not self.index_exists(index): return
     # Query source ES for the text
-    query = TMDbQuery(es=self.es.es,
+    query = TMDbQuery(es=self.es,
                       index = index,
                       q=qstring,
                       filter=filter)
@@ -88,7 +88,7 @@ class TMMonoLing:
     index = TMUtils.lang2es_index(lang)
     if not self.index_exists(index): return
     # Query source ES for the text
-    query = TMDbQuery(es=self.es.es,
+    query = TMDbQuery(es=self.es,
                           index=index,
                           q=q_list,
                           filter=filter,
@@ -124,7 +124,7 @@ class TMMonoLing:
     index = TMUtils.lang2es_index(lang)
     if not self.index_exists(index): return
 
-    query = TMDbQuery(es=self.es.es, index = index, filter=filter)
+    query = TMDbQuery(es=self.es, index = index, filter=filter)
     for hit in query.scan():
       # Build segment by querying map and target index
       yield hit

@@ -27,7 +27,7 @@ from flask_restful.reqparse import RequestParser
 
 from RestApi.Models import app, CRUD, current_identity_roles, current_userid, current_username
 from Auth import permission
-from helpers.KeycloakHelper import keycloak
+from src.RestApi.Models import UserScopes, current_identity
 
 
 class UsersResource(Resource):
@@ -37,96 +37,20 @@ class UsersResource(Resource):
    @apiParam {String} role User role: admin or user
   """
   """
-  @api {get} /users/<username> Get user details. If no user specified, all users' details are returned
+  @api {get} /users Get user details. If no user specified, all users' details are returned
   @apiVersion 1.0.0
   @apiName Get
   @apiGroup Users
   @apiUse Header
   @apiPermission admin
 
-  @apiParam {String} [username]
-
   @apiError {String} 404 User doesn't exist
 
   """
-  @permission("user")
-  def get(self, username=None):
+  @permission()
+  def get(self):
     # Non-admin can query only themselves
-    if "admin" in current_identity_roles():
-        return keycloak.get_user_info(username=username)
-    else:
-        username = current_username() # force to get only current user
-        if username and username != current_username():
-            abort(403, mesage="Permission denied")
-
-    return keycloak.get_user_info(username=username)
-
-  """
-  @api {post} /users/<username> Add/update user details
-  @apiVersion 1.0.0
-  @apiName AddUpdate
-  @apiGroup Users
-  @apiUse Header
-  @apiPermission admin
-
-  @apiParam {String} username
-  @apiUse UserParams
-
-  @apiError {String} 403 Insufficient permissions
-
-  """
-  @permission("admin")
-  def post(self):
-    args = self._reqparse()
-    keycloak.add_user(args)
-    keycloak_user_by_username = keycloak.get_user_info(username=args['username'])
-    if not len(keycloak_user_by_username) > 0:
-        abort(500, message="Error creating user")
-    user = Users.query.get(keycloak_user_by_username[0]['id'])
-    try:
-      if user:
-        keycloak.edit_user(keycloak_user_by_username[0]['id'], args)
-        user.update(**args)
-        CRUD.update()
-      else:
-        user = Users(keycloak_user_by_username[0]['id'], **args)
-        CRUD.add(user)
-    except Exception as e:
-      abort(500, message=str(e))
-    return keycloak_user_by_username[0]
-
-  """
-    @api {delete} /users/<username> Delete user
-    @apiVersion 1.0.0
-    @apiName Delete
-    @apiGroup Users
-    @apiUse Header
-    @apiPermission admin
-
-    @apiParam {String} username
-    @apiUse UserParams
-
-    @apiError {String} 403 Insufficient permissions
-    @apiError {String} 404 User doesn't exist
-
-  """
-  @permission("admin")
-  def delete(self, username):
-    if username == Users.ADMIN:
-      abort(403, message="You can't delete {} user".format(Users.ADMIN))
-
-    keycloak_user = keycloak.get_user_info(username=username)
-    user = Users.query.get(keycloak_user[0]['id'])
-    if user:
-        try:
-            user.delete_scopes()  # First, delete all user scopes
-            CRUD.delete(user)
-        except Exception as e:
-            abort(500, message=str(e))
-    else:
-        abort(404, mesage="User {} doesn't exist".format(username))
-
-    return keycloak.delete_user(keycloak_user[0]['id'])
+    return current_identity()
 
   def _reqparse(self):
       parser = RequestParser(bundle_errors=True)
@@ -149,35 +73,36 @@ class UserScopesResource(Resource):
    @apiParam {String} role User role: admin or user
   """
   """
-  @api {get} /users/<username>/scopes Get user scopes
+  @api {get} /users/scopes Get user scopes
   @apiVersion 1.0.0
   @apiName Get
   @apiGroup Users
   @apiUse Header
   @apiPermission admin
 
-  @apiParam {String} username
-
   @apiError {String} 404 User doesn't exist
 
   """
-  @permission("admin")
-  def get(self, username):
-    user = Users.query.filter_by(username=username).first()
-    if user:
-      return {'user_scopes': [scope.to_dict() for scope in user.scopes]}
+  @permission()
+  def get(self):
+    user_scopes = UserScopes()
+    user_scopes_list = user_scopes.get_scope_by_user_id()
+    result = []
+    for scope in user_scopes_list:
+      result.append(scope.to_dict())
+    if result:
+        return {'user_scopes': result}
     else:
-      abort(404, mesage="User {} doesn't exist".format(username))
+      abort(404, mesage="User Scopes doesn't exist")
 
   """
-  @api {post} /users/<username>/scopes Add/update user scope
+  @api {post} /users/scopes Add/update user scope
   @apiVersion 1.0.0
   @apiName AddUpdate
   @apiGroup UserScopes
   @apiUse Header
   @apiPermission admin
 
-  @apiParam {String} username
   @apiParam {Integer} [id] Scope id
   @apiParam {String} [lang_pairs] List (separated with comma) of allowed language pairs to query, ex.: en_es,es_en,es_fr. By default, allows all pairs
   @apiParam {String} [tags] List (separated with comma) of allowed tags to query, ex.: Health,Insurance. By default, allows all tags
@@ -193,55 +118,46 @@ class UserScopesResource(Resource):
   @apiError {String} 404 User doesn't exist
 
   """
-  @permission("admin")
-  def post(self, username):
+  @permission()
+  def post(self):
     args = self._post_reqparse()
-    user = Users.query.filter_by(username=username).first()
-
+    user_scopes = UserScopes()
     try:
-      if user:
-        scope = user.update_scope(**args)
-        if not scope:
-          abort(404, mesage="User {} - scope doesn't exist".format(username))
-        import logging
-        logging.info("Adding/updating scope: {}".format(scope))
-        CRUD.add(scope)
-      else:
-        abort(404, mesage="User {} doesn't exist".format(username))
+      scope = user_scopes.update_scope(**args)
+      if not scope:
+        abort(404, mesage="User scope doesn't exist")
+      import logging
+      logging.info("Adding/updating scope: {}".format(scope))
+      CRUD.add(scope)
     except Exception as e:
       abort(500, message=str(e))
-    return {"message" : "User {} - scope added/updated successfully".format(username)}
+    return {"message" : "User scope added/updated successfully"}
 
   """
-    @api {delete} /users/<username>/scope Delete scope
+    @api {delete} /users/scope Delete scope
     @apiVersion 1.0.0
     @apiName Delete
     @apiGroup UserScopes
     @apiUse Header
     @apiPermission admin
 
-    @apiParam {String} username
     @apiParam {Integer} id Scope id
 
     @apiError {String} 403 Insufficient permissions
     @apiError {String} 404 User doesn't exist
 
   """
-  @permission("admin")
-  def delete(self, username):
+  @permission()
+  def delete(self):
     args = self._delete_reqparse()
-
-    user = Users.query.filter_by(username=username).first()
-    if user:
-      try:
-        scope = user.get_scope(**args)
-        if scope:
-          CRUD.delete(scope)
-      except Exception as e:
-        abort(500, message=str(e))
-    else:
-      abort(404, mesage="User {} doesn't exist".format(username))
-    return {"message" : "User {} - scope deleted successfully".format(username)}
+    user_scopes = UserScopes()
+    try:
+      scope = user_scopes.get_scope(**args)
+      if scope:
+        CRUD.delete(scope)
+    except Exception as e:
+      abort(500, message=str(e))
+    return {"message" : "User scope deleted successfully"}
 
 
   def _post_reqparse(self):

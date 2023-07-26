@@ -57,9 +57,11 @@ app.config['JWT_AUTH_HEADER_PREFIX'] = "Bearer"
 keycloak_config = G_CONFIG.config['keycloak']
 
 
-
 def current_identity():
-    return g.oidc_token_info['tolkevarav']
+    user_infos = g.oidc_token_info['tolkevarav']
+    user_infos['username'] = current_username()
+    user_infos['id'] = current_userid()
+    return user_infos
 
 
 def current_identity_roles():
@@ -147,9 +149,6 @@ class UserScopes(db.Model):
   # Scope creation date
   created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
-  def __init__(self):
-    self.user_uuid = current_userid()
-
   def to_dict(self):
     return CRUD.to_dict(self)
 
@@ -164,12 +163,14 @@ class UserScopes(db.Model):
 
   # Add/update user scope
   def update_scope(self, **kwargs):
+    user_id = current_userid()
     with app.app_context():
       if 'id' in kwargs and kwargs['id']:
         scope = UserScopes.query.get(kwargs['id'])
-        if not scope or scope.user_uuid != self.user_uuid: return None
+        if not scope or scope.user_uuid != user_id: return None
       else:
-        scope = UserScopes(self.user_uuid)
+        scope = UserScopes()
+        scope.user_uuid = user_id
 
       for key,value in kwargs.items():
         if key == "tags":
@@ -182,22 +183,22 @@ class UserScopes(db.Model):
       return scope
 
   def get_scope(self, id):
+    user_id = current_userid()
     with app.app_context():
       scope = UserScopes.query.get(id)
-      if not scope or scope.user_uuid != self.user_uuid:
+      if not scope or scope.user_uuid != user_id:
         return None
       return scope
 
   def get_scope_by_user_id(self):
+    user_id = current_userid()
     with app.app_context():
-      scope = UserScopes.query.filter_by(user_uuid=self.user_uuid).first()
-      if not scope or scope.user_uuid != current_userid():
-        return None
-      return scope
+      return UserScopes.query.filter_by(user_uuid=user_id).all()
 
   def delete_scopes(self):
+    user_id = current_userid()
     with app.app_context():
-      UserScopes.query.filter_by(user_uuid=self.user_uuid).delete()
+      UserScopes.query.filter_by(user_uuid=user_id).delete()
 
 
 class UserSettings(db.Model):
@@ -206,9 +207,6 @@ class UserSettings(db.Model):
   user_uuid = db.Column(db.Text)
   # Regular expressions to apply (separated with comma)
   regex = db.Column(db.Text)
-
-  def __init__(self):
-    self.user_uuid = current_userid()
 
   def to_dict(self):
     return CRUD.to_dict(self)

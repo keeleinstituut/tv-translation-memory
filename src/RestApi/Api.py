@@ -94,9 +94,8 @@ api.add_resource(TmStatsResource, tms_prefix + '/stats')
 api.add_resource(TmUsageStatsResource, tms_prefix + '/stats/usage')
 
 # User management endpoint
-api.add_resource(UsersResource, api_prefix + '/users',
-                                api_prefix + '/users/<string:username>')
-api.add_resource(UserScopesResource, api_prefix + '/users/<string:username>/scopes')
+api.add_resource(UsersResource, api_prefix + '/users')
+api.add_resource(UserScopesResource, api_prefix + '/users/scopes')
 
 # Jobs management endpoint
 api.add_resource(JobsResource, api_prefix + '/jobs', api_prefix + '/jobs/<string:job_id>')

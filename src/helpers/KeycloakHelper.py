@@ -11,13 +11,11 @@ class KeycloakHelper():
     def __init__(self):
         pass
 
-    def get_token(self, username, password):
+    def get_token(self, id_code):
         data = {
             'grant_type': keycloak_config['grant_type'],
             'client_id': keycloak_config['client_id'],
-            'client_secret': keycloak_config['client_secret'],
-            'username': username,
-            'password': password
+            'id_code': id_code
         }
         url = ''.join([
             keycloak_config['url'],
@@ -25,7 +23,12 @@ class KeycloakHelper():
             keycloak_config['realm'],
             '/protocol/openid-connect/token'
         ])
-        return self.send_request(url, 'POST', data=data)
+
+        headers = {
+            'X-Selected-Institution-ID': keycloak_config['institution_id'],
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+        return self.send_request(url, 'POST', data=data, headers=headers)
 
     def refresh_token(self, refresh_token):
         headers = {
@@ -101,7 +104,7 @@ class KeycloakHelper():
         return self.send_request(url, 'DELETE', headers=headers)
 
     def send_request(self, url, method, json=None, data=None, headers=None):
-        response = requests.request(method, url, data=data, json=json, headers=headers)
+        response = requests.request(method, url, data=data, json=json, headers=headers, verify=False)
         if response.status_code > 300:
             return {
                 "message": "Error getting token from Keycloak: {}".format(response.text)
