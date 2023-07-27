@@ -28,15 +28,11 @@ sys.path = [p for p in sys.path if p]
 import logging
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', level=logging.INFO)
 
-from flask import Flask, g
 from flask_restful import Api
 
 from flask_principal import Principal
-from flask_jwt import JWT
 
 from celery import Celery
-
-from datetime import timedelta
 
 from Config.Config import G_CONFIG
 from RestApi.Models import db, app, CRUD

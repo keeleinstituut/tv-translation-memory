@@ -24,7 +24,6 @@
 from flask import current_app, request
 from flask_principal import identity_changed, identity_loaded, Identity, RoleNeed, UserNeed, Permission, \
     PermissionDenied
-from flask_jwt import JWTError, _default_jwt_payload_handler
 from flask_restful import abort
 from functools import wraps
 
@@ -224,10 +223,10 @@ def jwt_request_handler():
     parts = auth_header_value.split()
 
     if parts[0].lower() != auth_header_prefix.lower():
-      raise JWTError('Invalid JWT header', 'Unsupported authorization type')
+      raise abort('Invalid JWT header', 'Unsupported authorization type')
     elif len(parts) == 1:
-      raise JWTError('Invalid JWT header', 'Token missing')
+      raise abort('Invalid JWT header', 'Token missing')
     elif len(parts) > 2:
-      raise JWTError('Invalid JWT header', 'Token contains spaces')
+      raise abort('Invalid JWT header', 'Token contains spaces')
 
     return parts[1]

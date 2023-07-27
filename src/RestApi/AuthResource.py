@@ -26,7 +26,6 @@ from flask_restful import Resource, abort, inputs
 from flask_restful.reqparse import RequestParser
 from Auth import jwt_request_handler
 from src.helpers.KeycloakHelper import keycloak
-from flask_jwt import JWTError
 
 
 class AuthResource(Resource):

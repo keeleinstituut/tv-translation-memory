@@ -30,8 +30,11 @@ elasticsearch==7.13.4
 et-xmlfile==1.0.1
 executing==1.2.0
 filelock==3.12.2
+cffi==1.15.1
+cryptography==41.0.2
+pycparser==2.21
+PyJWT==2.8.0
 Flask==2.2.5
-Flask-JWT==0.3.2
 Flask-Principal==0.4.0
 Flask-RESTful==0.3.10
 Flask-SQLAlchemy==3.0.3
@@ -87,10 +90,6 @@ pyasn1==0.5.0
 pyasn1-modules==0.3.0
 pycurl==7.43.0.6
 Pygments==2.7.1
-cffi==1.15.1
-cryptography==41.0.2
-pycparser==2.21
-PyJWT==2.8.0
 pymongo==4.3.3
 pyparsing==2.4.7
 pyresttest==1.7.1
