@@ -2,18 +2,17 @@ version: "3.8"
 
 services:
   postgres:
-    container_name: tv_db
     image: postgres:11
     ports:
       - 5433:5432
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=activatm
+      - POSTGRES_USER=activatm
+      - POSTGRES_PASSWORD=activatm
     networks:
       - tv-network
     volumes:
-       - ./postgres:/data/postgres
+       - postgres-data:/var/lib/postgresql/data
        - ./pgsql/1_schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "activatm"]
@@ -23,7 +22,6 @@ services:
     restart: unless-stopped
 
   redis:
-    container_name: tv_redis
     image: redis:latest
     ports:
       - 6379:6379
@@ -36,7 +34,6 @@ services:
       retries: 10
 
   spark:
-    container_name: tv_spark
     image: bde2020/spark-master:3.3.0-hadoop3.3
     ports:
       - "8080:8082"
@@ -48,7 +45,6 @@ services:
   
   spark-worker:
     image: bde2020/spark-worker:3.3.0-hadoop3.3
-    container_name: spark-worker
     depends_on:
       - spark
     ports:
@@ -58,12 +54,11 @@ services:
     networks:
       - tv-network
 
-  opensearch-node1:
+  opensearch-node:
     image: opensearchproject/opensearch:latest
-    container_name: opensearch-node1
     environment:
       - cluster.name=opensearch-cluster
-      - node.name=opensearch-node1
+      - node.name=opensearch-node
       - bootstrap.memory_lock=true # along with the memlock settings below, disables swapping
       - "OPENSEARCH_JAVA_OPTS=-Xms1024m -Xmx1024m" # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
       - "DISABLE_INSTALL_DEMO_CONFIG=true" # disables execution of install_demo_configuration.sh bundled with security plugin, which installs demo certificates and security configurations to OpenSearch
@@ -85,7 +80,7 @@ services:
     depends_on:
       - postgres
     volumes:
-      - ./opensearch-data1:/usr/share/opensearch/data
+      - opensearch-data:/usr/share/opensearch/data
     ports:
       - 9200:9200
       - 9600:9600 # required for Performance Analyzer
@@ -93,19 +88,16 @@ services:
       - tv-network
   
   opensearch-dashboards:
-    container_name: tv_dev_os_dashboard
     image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
     ports:
       - 5601:5601 # Map host port 5601 to container port 5601
-    expose:
-      - "5601" # Expose port 5601 for web access to OpenSearch Dashboards
     environment:
-      OPENSEARCH_HOSTS: '["http://opensearch-node1:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
+      OPENSEARCH_HOSTS: '["http://opensearch-node:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
       DISABLE_SECURITY_DASHBOARDS_PLUGIN: true
     networks:
       - tv-network
     depends_on:
-      - opensearch-node1
+      - opensearch-node
 
   activatm:
     build:
@@ -116,7 +108,7 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      opensearch-node1:
+      opensearch-node:
         condition: service_healthy
     networks:
       - tv-network
@@ -131,8 +123,8 @@ services:
       - "3050:3050"
 
 volumes:
-  opensearch-data1:
-  postgres:
+  opensearch-data:
+  postgres-data:
 
 networks:
   tv-network:

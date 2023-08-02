@@ -9,7 +9,7 @@ spark:
   segments_per_task: 10000
 
 opensearch:
-  host: opensearch-node1 # 127.0.0.1
+  host: opensearch-node # 127.0.0.1
   port: 9200
 
 postgresql:
