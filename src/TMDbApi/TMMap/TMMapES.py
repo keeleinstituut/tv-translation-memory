@@ -453,7 +453,7 @@ class TMMapES(TMMap):
     #script += script + 'ctx._source.dirty_score = dirty_score ? dirty_score : ctx._source.dirty_score;'
     script += script + 'ctx._source.dirty_score = params.source.dirty_score;' # Alex decided: If no rule was applied, then dirty_score = 0
     script += script + 'ctx._source.update_date = params.source.update_date;'
-    print(script)
+    # print(script)
     #return {'script': { 'inline': script, 'lang': 'painless' } }
     return {'script': { 'source': script, 'lang': 'painless' } }
 

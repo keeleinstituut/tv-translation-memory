@@ -136,4 +136,4 @@ class TMQueryLogger:
 if __name__ == "__main__":
   import json
   tl = TMQueryLogger()
-  print(json.dumps(tl.stats()))
+  # print(json.dumps(tl.stats()))

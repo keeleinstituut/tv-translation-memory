@@ -138,7 +138,7 @@ class TMMatching:
         logging.info("Identical Segments (Query -- Source): {} {}".format(safe_str(self.query_dic['query'] + ' -- '),safe_str(segment.source_text))) # source and query ar identical, then is not necessary untokenizer or check upper or lower
         equal = True
         editD = ini_editD
-        print('---------- ' + str(editD))
+        # print('---------- ' + str(editD))
         self.trans_segments, status = self._deals_output(segment, editD, self.trans_segments, False, status) # decide next step
 
       else: # The best is not 100% match --> applied transformations

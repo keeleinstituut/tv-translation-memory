@@ -99,7 +99,7 @@ class TMXIterWriter(TMXWriter):
     super(TMXIterWriter, self).__init__(filename, srclang)
     (tree, body) = self._init_tree()
     tree_str = etree.tostring(tree.getroot(), pretty_print=True).decode(self.ENCODING)
-    print(tree_str)
+    # print(tree_str)
     # Split artificially skeleton into header and footer
     (self.header, self.footer) = tree_str.split('<body/>')
     self.header += '<body>\n'
