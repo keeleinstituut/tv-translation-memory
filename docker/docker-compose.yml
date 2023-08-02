@@ -86,7 +86,6 @@ services:
       - postgres
     volumes:
       - ./opensearch-data1:/usr/share/opensearch/data
-      - ./../conf/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
     ports:
       - 9200:9200
       - 9600:9600 # required for Performance Analyzer
