@@ -69,17 +69,12 @@ from RestApi.Auth import authenticate, identity, jwt_request_handler, jwt_payloa
 from RestApi.TmResource import TmResource, TmBatchQueryResource, TmImportResource, TmExportResource, TmExportFileResource, \
                                 TmGenerateResource, TmMaintainResource, TmPosTagResource, TmCleanResource, \
                                 TmStatsResource, TmUsageStatsResource
-from RestApi.UsersResource import UsersResource, UserScopesResource
 from RestApi.JobsResource import JobsResource
-from RestApi.AdminUi.AdminUi import admin_ui
-from RestApi.SettingsResource import SettingsResource
-from RestApi.TokenResource import TokenResource
 from RestApi.TagsResource import TagsResource
 
 api = Api(app)
 api_prefix = "/api/v{}".format(app.config['VERSION'])
 # Dummy endpoint to quickly validate JWT token
-api.add_resource(TokenResource, api_prefix + '/token')
 # TM endpoint (query, export and import)
 tms_prefix = api_prefix + '/tm'
 api.add_resource(TmResource, tms_prefix)
@@ -96,44 +91,14 @@ api.add_resource(TmCleanResource, tms_prefix + '/clean')
 api.add_resource(TmStatsResource, tms_prefix + '/stats')
 api.add_resource(TmUsageStatsResource, tms_prefix + '/stats/usage')
 
-# User management endpoint
-api.add_resource(UsersResource, api_prefix + '/users',
-                                api_prefix + '/users/<string:username>')
-api.add_resource(UserScopesResource, api_prefix + '/users/<string:username>/scopes')
 
 # Jobs management endpoint
 api.add_resource(JobsResource, api_prefix + '/jobs', api_prefix + '/jobs/<string:job_id>')
-
-# Settings
-api.add_resource(SettingsResource, api_prefix + '/settings')
 
 # Tags (domains)
 api.add_resource(TagsResource, api_prefix + '/tags',
                                 api_prefix + '/tags/<string:tag_id>')
 
-#Admin UI panel
-#api.add_resource(AdminUiResource, '/admin/<path:page>')
-# TODO: serve static resources using nginx. Here used for demo only 
-#api.add_resource(AdminUiAssetsResource, '/admin/assets/<string:type>/<string:asset>')
-
-
-# Authentication end-point
-"""
- @api {post} /auth Authorize user with a username and a password
- @apiVersion 1.0.0
- @apiName Auth
- @apiGroup Authorization
-
- @apiParam {String} username
- @apiParam {String} password
-
- @apiSuccess {String} access_token Authorization token for use it in other endpoints
- @apiError {String} 401 Invalid credentials
-
- @apiExample {curl} Example usage:
- curl -H "Content-Type: application/json" -XPOST http://127.0.0.1:/api/v1/auth -d
- '{ "username": "user1", "password": "abcxy"}'
-"""
 app.config['JWT_AUTH_URL_RULE'] = api_prefix + '/auth'
 app.config['JWT_EXPIRATION_DELTA'] = timedelta(hours=24)
 jwt = JWT(app, authenticate, identity)
