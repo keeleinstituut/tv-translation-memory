@@ -422,8 +422,6 @@ class TMDbApi:
     new_segments = []
     logging.info("Match segments: {}".format(segments))
     for segment, ter in segments: # This one is for each segment
-      if not new_segments: new_segments = segments
-
       # Commented for now, as it is not clear and when query is running fast, it doesn't work
       '''
       # Check time

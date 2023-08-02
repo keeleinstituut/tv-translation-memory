@@ -21,9 +21,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask import current_app, request
-from flask_principal import identity_changed, identity_loaded, Identity, RoleNeed, UserNeed, Permission, PermissionDenied
-from flask_jwt import _jwt_required, current_identity, JWTError, _default_jwt_payload_handler
+from flask import request
+from flask_principal import RoleNeed, Permission
 from flask_restful import abort
 from functools import wraps
 
@@ -32,105 +31,97 @@ import datetime
 
 import logging
 
-from RestApi.Models import Tags
+import json
+import urllib.request
+import jwt
+from flask import current_app, g
+
+from src.RestApi.Models import UserScopes, app
+from Config.Config import G_CONFIG
 
 # Admin permission requires admin role
 admin_permission = Permission(RoleNeed('admin'))
 # User permission requires either admin or user role
 user_permission = Permission(RoleNeed('user')).union(admin_permission)
 
-def authenticate(username, password):
-  user = Users.query.get(username)
-  if user and user.check_password(password):
-    return user
+app.config['SECRET_KEY'] = 'super-secret'
+app.config['VERSION'] = 1
+app.config['PROPAGATE_EXCEPTIONS'] = True
+app.config['JWT_AUTH_HEADER_PREFIX'] = "Bearer"
+
+keycloak_config = G_CONFIG.config['keycloak']
+
+def access_token():
+    return jwt_request_handler()
 
 
-def identity(payload):
-  user = Users.query.filter(Users.username == payload['identity']).scalar()
-  if user:
-    # Inform Principal about loaded identity (not sure if it is needed as this happens
-    # before flask-principal package is loaded)
-    identity_loaded.send(current_app._get_current_object(),
-                          identity=Identity(user.id))
-  return user
-
-@identity_loaded.connect
-def on_identity_loaded(sender, identity):
-    username = identity.id
-    # Set the identity user object
-    user =  Users.query.get(str(username))
-
-    logging.info("UserScopeChecker: identity loaded for : {}, user object: {}".format(username, user))
-
-    # Add the UserNeed to the identity
-    identity.provides.add(UserNeed(user.id))
-
-    # Assuming the User model has a role field, update the
-    # identity with the role that the user provides
-    identity.provides.add(RoleNeed(user.role))
+def get_jwks_url(issuer_url):
+  well_known_url = issuer_url + "/.well-known/openid-configuration"
+  with urllib.request.urlopen(well_known_url) as response:
+    well_known = json.load(response)
+  if not 'jwks_uri' in well_known:
+    raise Exception('jwks_uri not found in OpenID configuration')
+  return well_known['jwks_uri']
 
 
-# Decorator class, combining JWT token check and Principals permission check
-class PermissionChecker:
-  # Principal's Permission object
-  def __init__(self, permission, jwt_required=_jwt_required):
-    self.permission = permission
-    self.jwt_required = jwt_required # function for checking JWT token
+def decode_and_validate_token(token):
+  unvalidated = jwt.decode(token, options={"verify_signature": False})
+  jwks_url = get_jwks_url(unvalidated['iss'])
+  jwks_client = jwt.PyJWKClient(jwks_url)
+  header = jwt.get_unverified_header(token)
+  key = jwks_client.get_signing_key(header["kid"]).key
+  return jwt.decode(token, key, [header["alg"]], audience=unvalidated['aud'])
 
-  # Wraps given func with JWT token and Principal permission check
-  def __call__(self, func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-      # Check JWT token in the default realm (sets current_identity object)
-      self.jwt_required(current_app.config['JWT_DEFAULT_REALM'])
-      # Inform Principal about changed identity by sending a signal. Current identity is
-      # taken from JWT-provided current_identity object
-      identity_changed.send(current_app._get_current_object(),
-                          identity=Identity(current_identity.id))
-      ctx = self.permission.require()
-      logging.info("Principal context: {}, identity: {}".format(ctx.__dict__, ctx.identity))
-      # Test whether current identity has enough permissions
-      try:
-        self.permission.test()
-      except PermissionDenied as e:
-        logging.info("PermissionChecker: denied access to: {}, reason: {}".format(current_identity.id, str(e)))
-        abort(403, message="You don't have sufficient permissions for this operation")
-      logging.info("PermissionChecker: authorized access to: {}".format(current_identity.id))
-      return func(*args, **kwargs)
-    return wrapper
 
-from RestApi.Models import Users
+def permission(*roles):
+    def decorator(func):
+        @wraps(func)
+        def decorated_function(*args, **kwargs):
+            token = jwt_request_handler()
+            token_info = decode_and_validate_token(token)
+
+            if token_info and 'tolkevarav':
+                privileges = token_info['tolkevarav']['privileges']
+                if len(roles) == 0:
+                    g.oidc_token_info = token_info
+                    return func(*args, **kwargs)
+                for role in roles:
+                    if role not in privileges:
+                        abort(403, message="You don't have sufficient permissions for this operation")
+                g.oidc_token_info = token_info
+                return func(*args, **kwargs)
+            else:
+                abort(401, message="Invalid token")
+
+        return decorated_function
+
+    return decorator
 
 # Check user scope (language pair, domain, usage limit)
 class UserScopeChecker:
 
   @staticmethod
   def check(lang_pair, domain, is_update=False, is_import=False, is_export=False):
-    user = current_identity
-    status = UserScopeChecker._check(user, "_".join(lang_pair), domain, is_update, is_import, is_export)
+    status = UserScopeChecker._check("_".join(lang_pair), domain, is_update, is_import, is_export)
     if not status:
       logging.info(
-        "UserScopeChecker: access denied to {}, language pair: {}, domain: {}, update: {}".format(user.id,
+        "UserScopeChecker: access denied to {}, language pair: {}, domain: {}, update: {}".format(current_userid(),
                                                                                                        lang_pair,
                                                                                                        domain,
                                                                                                        is_update))
       return False
-    logging.info("UserScopeChecker: authorized access to: {}, language pair: {}, domain: {}, update: {}".format(user.id, lang_pair, domain, is_update))
+    logging.info("UserScopeChecker: authorized access to: {}, language pair: {}, domain: {}, update: {}".format(current_userid(), lang_pair, domain, is_update))
     return True
 
   @staticmethod
   def filter_lang_pairs(lp_str_list, allow_reverse=False): # for ex. ['en_es', 'en_ar']
-    user = current_identity
-    if not user.scopes:
+    user_scopes = UserScopes()
+    if not user_scopes.get_scope_by_user_id():
       # no scope defined, all pairs are accessible
       return lp_str_list
-      #if user.role == Users.ADMIN:
-      #  return lp_str_list  # no scope defined, all pairs are accessible
-      #else:
-      #  return []
 
     lp_set = set()
-    for scope in user.scopes:
+    for scope in user_scopes.get_scope_by_user_id():
       if not UserScopeChecker._is_valid(scope): continue
       for lp in lp_str_list:
         if UserScopeChecker._check_pattern(scope.lang_pairs, lp):
@@ -145,15 +136,12 @@ class UserScopeChecker:
   @staticmethod
   def filter_domains(domains, lp=None, key_fn=lambda k: k, allow_unspecified=True):
     if not domains: domains = []
-    user = current_identity
-    if not user.scopes:
-      if user.role == Users.ADMIN:
-        return domains # no scope defined, all pairs are accessible
-      else:
+    user_scopes = UserScopes()
+    if not user_scopes.get_scope_by_user_id():
         return [d for d in domains if d["type"] == "public" or allow_unspecified and d["type"] == "unspecified" ] # return only public and unspecified tags
 
     domain_list = list()
-    for scope in user.scopes:
+    for scope in user_scopes.get_scope_by_user_id():
       if not UserScopeChecker._is_valid(scope): continue
       if lp and not UserScopeChecker._check_pattern(scope.lang_pairs, lp): continue
       for d in domains :
@@ -167,16 +155,17 @@ class UserScopeChecker:
 
 
   @staticmethod
-  def _check(user, lang_pair_str, domain_list, is_update, is_import, is_export):
-    if not user.scopes or not domain_list:
+  def _check(lang_pair_str, domain_list, is_update, is_import, is_export):
+    user_scopes = UserScopes()
+    if not user_scopes.get_scope_by_user_id() or not domain_list:
       # Deny actions
-      if current_identity.role != Users.ADMIN  and (is_update or is_import or is_export): return False
+      if is_update or is_import or is_export: return False
       return True
 
     today = datetime.date.today()
 
     found = False
-    for scope in user.scopes:
+    for scope in user_scopes.get_scope_by_user_id():
       # Check for expired scope
       if scope.start_date and today < scope.start_date \
         or scope.end_date and today > scope.end_date: continue
@@ -241,20 +230,39 @@ def jwt_request_handler():
     parts = auth_header_value.split()
 
     if parts[0].lower() != auth_header_prefix.lower():
-      raise JWTError('Invalid JWT header', 'Unsupported authorization type')
+      raise abort('Invalid JWT header', 'Unsupported authorization type')
     elif len(parts) == 1:
-      raise JWTError('Invalid JWT header', 'Token missing')
+      raise abort('Invalid JWT header', 'Token missing')
     elif len(parts) > 2:
-      raise JWTError('Invalid JWT header', 'Token contains spaces')
+      raise abort('Invalid JWT header', 'Token contains spaces')
 
     return parts[1]
 
-def jwt_payload_handler(identity):
-  payload = _default_jwt_payload_handler(identity)
-  user = Users.query.filter(Users.username == payload['identity']).scalar()
-  # If user has a normal token (with expiration date), handle as usual
-  # Also, force admin user to have expiring token for security reasons
-  if not user or user.token_expires or user.role == Users.ADMIN: return payload
-  # Put maximal datetime as a timestamp to make non-expiring token
-  payload['exp'] = datetime.datetime.max
-  return payload
+
+def current_identity():
+    user_infos = g.oidc_token_info['tolkevarav']
+    user_infos['username'] = current_username()
+    user_infos['id'] = current_userid()
+    return user_infos
+
+
+def current_identity_roles():
+    return g.oidc_token_info['tolkevarav']['privileges']
+
+
+def current_username():
+    return g.oidc_token_info['tolkevarav']['forename'] + ' ' + g.oidc_token_info['tolkevarav']['surname']
+
+
+def current_userid():
+    return g.oidc_token_info['tolkevarav']['userId']
+
+
+def current_institution_id():
+    return g.oidc_token_info['tolkevarav']['selectedInstitution']['id']
+
+
+def current_institution_name():
+    return g.oidc_token_info['tolkevarav']['selectedInstitution']['name']
+
+

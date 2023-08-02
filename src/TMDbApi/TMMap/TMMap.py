@@ -22,7 +22,6 @@
 # under the License.
 #
 import datetime
-import re
 from TMDbApi.TMUtils import TMUtils
 # Bidirectional map abstract class
 class TMMap:

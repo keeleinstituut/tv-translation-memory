@@ -12,6 +12,10 @@ opensearch:
   host: opensearch-node # 127.0.0.1
   port: 9200
 
+keycloak:
+  url: https://sso.dev.tolkevarav.eki.ee/ # http://127.0.0.1:8180/
+  realm: tolkevarav-dev
+
 postgresql:
   host: postgres # localhost
   port: 5432 # 5433

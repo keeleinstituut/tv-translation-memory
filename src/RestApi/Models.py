@@ -21,14 +21,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import re
-import dateutil
 import datetime
 import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-#from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
 from Config.Config import G_CONFIG
 
 POSTGRESQL_HOST = G_CONFIG.config['postgresql']['host']
@@ -89,79 +85,9 @@ class CRUD:
     return d
 
 
-class Users(db.Model):
-  username = db.Column(db.Text, primary_key=True)
-  password = db.Column(db.Text)
-  role = db.Column(db.Text, default="user")
-  token_expires = db.Column(db.Boolean, default=True)
-  is_active = db.Column(db.Boolean, default=True)
-  scopes = db.relationship('UserScopes', backref='user')
-  settings = db.relationship('UserSettings', backref='user')
-
-  created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-
-  # Needed for JWT authentication
-  @property
-  def id(self):
-    return self.username
-
-  ADMIN = 'admin'
-
-  def __init__(self, username, **kwargs):
-    self.username = username
-    self.update(**kwargs)
-
-  def update(self, **kwargs):
-    for key,value in kwargs.items():
-      if value == '': continue
-      if hasattr(self, key): setattr(self, key, value)
-      if key == 'password': self.set_password(value)
-
-  # Add/update user scope
-  def update_scope(self, **kwargs):
-    if 'id' in kwargs and kwargs['id']:
-      scope = UserScopes.query.get(kwargs['id'])
-      if not scope or scope.username != self.username: return None
-    else:
-      scope = UserScopes(self.username)
-
-    for key,value in kwargs.items():
-      if key == "tags":
-        key = "domains" # keep backward compatitbility for now
-      elif not value:
-        continue
-      if re.search('_date$', key):  # convert string to datetime
-        value = dateutil.parser.parse(value)
-      if hasattr(scope, key): setattr(scope, key, value)
-    return scope
-
-  def get_scope(self, id):
-    scope = UserScopes.query.get(id)
-    if not scope or scope.username != self.username:
-      return None
-    return scope
-
-  def delete_scopes(self):
-    UserScopes.query.filter_by(username = self.username).delete()
-
-  def set_password(self, password):
-    self.password = generate_password_hash(password)
-
-  def check_password(self, password):
-    if not self.password: return True
-    if not password: return False
-    return check_password_hash(self.password, password)
-
-  def to_dict(self):
-    d = CRUD.to_dict(self)
-    del d["password"]
-    d["scopes"] = [ s.to_dict() for s in self.scopes]
-    return d
-
 class UserScopes(db.Model):
   id = db.Column(db.Integer, primary_key=True)
-
-  username = db.Column(db.Text, db.ForeignKey('users.username'))
+  user_uuid = db.Column(db.Text)
 
   # Permission patterns (list of wildcards)
   lang_pairs = db.Column(db.Text)
@@ -181,9 +107,6 @@ class UserScopes(db.Model):
   # Scope creation date
   created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
-  def __init__(self, username):
-    self.username = username
-
   def to_dict(self):
     return CRUD.to_dict(self)
 
@@ -199,12 +122,9 @@ class UserScopes(db.Model):
 class UserSettings(db.Model):
   id = db.Column(db.Integer, primary_key=True)
 
-  username = db.Column(db.Text, db.ForeignKey('users.username'))
+  user_uuid = db.Column(db.Text)
   # Regular expressions to apply (separated with comma)
   regex = db.Column(db.Text)
-
-  def __init__(self, username):
-    self.username = username
 
   def to_dict(self):
     return CRUD.to_dict(self)

@@ -28,22 +28,14 @@ sys.path = [p for p in sys.path if p]
 import logging
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', level=logging.INFO)
 
-from flask import Flask, g
 from flask_restful import Api
 
 from flask_principal import Principal
-from flask_jwt import JWT
 
 from celery import Celery
 
-from datetime import timedelta
-
 from Config.Config import G_CONFIG
-from RestApi.Models import db, app, CRUD, Users
-
-app.config['SECRET_KEY'] = 'super-secret'
-app.config['VERSION'] = 1
-app.config['PROPAGATE_EXCEPTIONS'] = True
+from RestApi.Models import db, app
 
 # Setup logging
 handler = G_CONFIG.config_logging()
@@ -65,7 +57,6 @@ celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(app.config)
 
 
-from RestApi.Auth import authenticate, identity, jwt_request_handler, jwt_payload_handler
 from RestApi.TmResource import TmResource, TmBatchQueryResource, TmImportResource, TmExportResource, TmExportFileResource, \
                                 TmGenerateResource, TmMaintainResource, TmPosTagResource, TmCleanResource, \
                                 TmStatsResource, TmUsageStatsResource
@@ -99,26 +90,11 @@ api.add_resource(JobsResource, api_prefix + '/jobs', api_prefix + '/jobs/<string
 api.add_resource(TagsResource, api_prefix + '/tags',
                                 api_prefix + '/tags/<string:tag_id>')
 
-app.config['JWT_AUTH_URL_RULE'] = api_prefix + '/auth'
-app.config['JWT_EXPIRATION_DELTA'] = timedelta(hours=24)
-jwt = JWT(app, authenticate, identity)
-jwt.jwt_payload_handler(jwt_payload_handler)
-
-# TODO: uncomment if needed to pass token via URL parameter
-# jwt.request_handler(jwt_request_handler)
-
-# Admin UI
-#app.register_blueprint(admin_ui)
 
 with app.app_context():
     # Extensions like Flask-SQLAlchemy now know what the "current" app
     # is while within this block. Therefore, you can now run........
     db.create_all()
-
-    # Insert initial admin user
-    if not Users.query.count():
-        admin = Users(Users.ADMIN, password=Users.ADMIN, role=Users.ADMIN)
-        CRUD.add(admin)
 
 if __name__ == '__main__':
     # print(os.getcwd())

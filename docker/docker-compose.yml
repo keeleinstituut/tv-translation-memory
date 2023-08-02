@@ -4,7 +4,7 @@ services:
   postgres:
     image: postgres:11
     ports:
-      - 5433:5432
+      - "5433:5432"
     environment:
       - POSTGRES_DB=activatm
       - POSTGRES_USER=activatm
@@ -24,7 +24,7 @@ services:
   redis:
     image: redis:latest
     ports:
-      - 6379:6379
+      - "6379:6379"
     networks:
       - tv-network
     healthcheck:
@@ -82,15 +82,15 @@ services:
     volumes:
       - opensearch-data:/usr/share/opensearch/data
     ports:
-      - 9200:9200
-      - 9600:9600 # required for Performance Analyzer
+      - "9200:9200"
+      - "9600:9600" # required for Performance Analyzer
     networks:
       - tv-network
   
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
     ports:
-      - 5601:5601 # Map host port 5601 to container port 5601
+      - "5601:5601" # Map host port 5601 to container port 5601
     environment:
       OPENSEARCH_HOSTS: '["http://opensearch-node:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
       DISABLE_SECURITY_DASHBOARDS_PLUGIN: true
@@ -113,7 +113,7 @@ services:
     networks:
       - tv-network
     ports:
-      - 5001:5000
+      - "5001:5000"
 
   apidoc:
     build:
