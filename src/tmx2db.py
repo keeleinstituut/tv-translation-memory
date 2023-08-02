@@ -38,7 +38,7 @@ def add():
   for f in it:
     parser = TMXParser(f)
     segments = parser.parse()
-    print(parser.fileName)
+    # print(parser.fileName)
     db.add_segments(segments)
 
 def query(num):
