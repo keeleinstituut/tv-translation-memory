@@ -116,7 +116,8 @@ COPY . $ELASTICTM
 # Start Gunicorn
 USER www-data
 WORKDIR $ELASTICTM/src/RestApi
-CMD gunicorn \
+CMD tail -f $ELASTICTM/log/gunicorn.log & \
+    gunicorn \
     -m 007 \
     --bind 0.0.0.0:5000 \
     --workers $GUNICORN_WORKERS \
