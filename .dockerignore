@@ -1,0 +1,8 @@
+/.git/
+.gitignore
+LICENSE
+README.md
+/test/
+/helm/
+/doc/
+/data/

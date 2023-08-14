@@ -137,6 +137,6 @@ class Config:
 # Global config
 G_CONFIG = Config()
 
-if __name__ == "__main__":
-  print(G_CONFIG.config)
-  print(G_CONFIG.get_cleaning_rules())
+# if __name__ == "__main__":
+  # print(G_CONFIG.config)
+  # print(G_CONFIG.get_cleaning_rules())

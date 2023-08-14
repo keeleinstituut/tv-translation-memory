@@ -2,43 +2,38 @@ version: "3.8"
 
 services:
   postgres:
-    container_name: tv_db
     image: postgres:11
     ports:
       - 5433:5432
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=activatm
+      - POSTGRES_USER=activatm
+      - POSTGRES_PASSWORD=activatm
     networks:
       - tv-network
     volumes:
-       - ./postgres:/data/postgres
+       - postgres-data:/var/lib/postgresql/data
        - ./pgsql/1_schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "activatm"]
+      interval: 5s
+      timeout: 1s
+      retries: 10
     restart: unless-stopped
 
   redis:
-    container_name: tv_redis
     image: redis:latest
     ports:
       - 6379:6379
     networks:
       - tv-network
-
-  nginx:
-    container_name: tv_web
-    build: ./nginx
-    environment:
-      - NGINX_HOST=localhost
-      - NGINX_PORT=80
-    networks:
-      - tv-network
-    ports:
-      - "7979:7979"
-      - "7878:7878"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      interval: 5s
+      timeout: 1s
+      retries: 10
 
   spark:
-    container_name: tv_spark
     image: bde2020/spark-master:3.3.0-hadoop3.3
     ports:
       - "8080:8082"
@@ -50,7 +45,6 @@ services:
   
   spark-worker:
     image: bde2020/spark-worker:3.3.0-hadoop3.3
-    container_name: spark-worker
     depends_on:
       - spark
     ports:
@@ -60,17 +54,22 @@ services:
     networks:
       - tv-network
 
-  opensearch-node1:
+  opensearch-node:
     image: opensearchproject/opensearch:latest
-    container_name: opensearch-node1
     environment:
       - cluster.name=opensearch-cluster
-      - node.name=opensearch-node1
+      - node.name=opensearch-node
       - bootstrap.memory_lock=true # along with the memlock settings below, disables swapping
       - "OPENSEARCH_JAVA_OPTS=-Xms1024m -Xmx1024m" # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
       - "DISABLE_INSTALL_DEMO_CONFIG=true" # disables execution of install_demo_configuration.sh bundled with security plugin, which installs demo certificates and security configurations to OpenSearch
       - "DISABLE_SECURITY_PLUGIN=true" # disables security plugin entirely in OpenSearch by setting plugins.security.disabled: true in opensearch.yml
       - "discovery.type=single-node" # disables bootstrap checks that are enabled when network.host is set to a non-loopback address
+    healthcheck:
+      test: ["CMD", "curl", "-f", "0.0.0.0:9200/_cluster/health?wait_for_status=yellow&timeout=5s"]
+      start_period: 45s
+      interval: 10s
+      timeout: 6s
+      retries: 10
     ulimits:
       memlock:
         soft: -1
@@ -81,8 +80,7 @@ services:
     depends_on:
       - postgres
     volumes:
-      - ./opensearch-data1:/usr/share/opensearch/data
-      - ./../conf/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+      - opensearch-data:/usr/share/opensearch/data
     ports:
       - 9200:9200
       - 9600:9600 # required for Performance Analyzer
@@ -90,44 +88,43 @@ services:
       - tv-network
   
   opensearch-dashboards:
-    container_name: tv_dev_os_dashboard
     image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
     ports:
       - 5601:5601 # Map host port 5601 to container port 5601
-    expose:
-      - "5601" # Expose port 5601 for web access to OpenSearch Dashboards
     environment:
-      OPENSEARCH_HOSTS: '["http://opensearch-node1:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
+      OPENSEARCH_HOSTS: '["http://opensearch-node:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
       DISABLE_SECURITY_DASHBOARDS_PLUGIN: true
     networks:
       - tv-network
     depends_on:
-      - opensearch-node1
+      - opensearch-node
 
   activatm:
     build:
       context: ./../
       dockerfile: ./docker/Dockerfile
     depends_on:
-      - redis
-      - postgres
-      - nginx
-      - opensearch-node1
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 1s
-      retries: 10
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      opensearch-node:
+        condition: service_healthy
     networks:
       - tv-network
     ports:
-      - 3050:3050
       - 5001:5000
-    
+
+  apidoc:
+    build:
+      context: ./../
+      dockerfile: ./docker/apidoc/Dockerfile
+    ports:
+      - "3050:3050"
 
 volumes:
-  opensearch-data1:
-  postgres:
+  opensearch-data:
+  postgres-data:
 
 networks:
   tv-network:

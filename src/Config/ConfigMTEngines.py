@@ -68,6 +68,6 @@ class ConfigMTEngines:
 # Global config
 ENGINE_CONFIG = ConfigMTEngines()
 
-if __name__ == "__main__":
-  print(ENGINE_CONFIG.configMT)
-  print(ENGINE_CONFIG.get_engine_script())
+# if __name__ == "__main__":
+  # print(ENGINE_CONFIG.configMT)
+  # print(ENGINE_CONFIG.get_engine_script())

@@ -286,7 +286,7 @@ class TMMonoLing:
         }
       }
     }
-    print(json.dumps(template))
+    # print(json.dumps(template))
     return template
 
 if __name__ == "__main__":

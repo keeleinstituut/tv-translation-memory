@@ -192,4 +192,5 @@ if __name__ == "__main__":
   logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', level=logging.INFO, stream=sys.stdout)
   parser = TMXParser(sys.argv[1])
   for segment in parser.parse():
-    print("SEGMENT: {}".format(segment.__dict__))
+    # print("SEGMENT: {}".format(segment.__dict__))
+    pass
