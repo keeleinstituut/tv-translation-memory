@@ -34,7 +34,7 @@ class MaintainTask:
   def __init__(self, task):
     self.langs = task.get_langs()
     self.version = self._calc_version()
-    print("Version: {}".format(self.version))
+    # print("Version: {}".format(self.version))
 
   def __call__(self, index, segments_iter):
     for segment in segments_iter:

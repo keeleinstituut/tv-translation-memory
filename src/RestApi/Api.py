@@ -156,7 +156,7 @@ with app.app_context():
         CRUD.add(admin)
 
 if __name__ == '__main__':
-    print(os.getcwd())
+    # print(os.getcwd())
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(logging.DEBUG)
     app.logger.addHandler(stream_handler)

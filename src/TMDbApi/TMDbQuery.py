@@ -152,4 +152,4 @@ if __name__ == '__main__':
   es = OpenSearchHelper()
   index = "map_en_es"
   q = TMDbQuery(es.global_es, index)
-  print([r.to_dict() for r in q.duplicates("source_text")])
+  # print([r.to_dict() for r in q.duplicates("source_text")])

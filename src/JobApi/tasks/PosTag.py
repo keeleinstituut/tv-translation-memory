@@ -120,7 +120,7 @@ class PosTagTask:
   def tag2iob(self, pos, tag):
     # Check if tag is at the beginning or at the end - skip it
     if pos[0] == tag or pos[-1] == tag: return None
-    print("POS: {}, TAG: {}".format(pos, tag))
+    # print("POS: {}, TAG: {}".format(pos, tag))
     iob = []
     is_inside = False
     for w in pos:

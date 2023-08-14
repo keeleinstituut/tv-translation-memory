@@ -51,10 +51,10 @@ def parse_args():
 def print_align(ori_segments, align_position, src_split_struct, tgt_split_struct):
   count = 0
 
-  print(len(ori_segments))
-  print(len(src_split_struct))
-  print(len(tgt_split_struct))
-  print(len(align_position))
+  # print(len(ori_segments))
+  # print(len(src_split_struct))
+  # print(len(tgt_split_struct))
+  # print(len(align_position))
 
   for i in range(0, len(ori_segments)):  # --> for all sentences
 
