@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["sleep", "infinity"]
+    environment:
+      - SPARK_WORKER_COUNT=2
+      - OPENSEARCH_HOST=opensearch-node
+      - OPENSEARCH_PORT=9200
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    ports:
+      - 5000:80
+#    volumes:
+#      - ./src:/opt/elastictm/src

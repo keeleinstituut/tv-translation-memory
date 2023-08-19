@@ -21,9 +21,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask import current_app, request
-from flask_principal import identity_changed, identity_loaded, Identity, RoleNeed, UserNeed, Permission, PermissionDenied
-from flask_jwt import _jwt_required, current_identity, JWTError, _default_jwt_payload_handler
+
+import jwt
+from flask import current_app
+from flask_principal import identity_changed, identity_loaded, RoleNeed, UserNeed, Permission, PermissionDenied
+from RestApi.Keycloak import KeycloakIdentity
+from lib.flask_jwt import _jwt_required, current_identity
 from flask_restful import abort
 from functools import wraps
 
@@ -32,42 +35,53 @@ import datetime
 
 import logging
 
-from RestApi.Models import Tags
+
+ADMIN = 'admin'
+TOLKEVARAV_PHYSICAL_USER = 'TOLKEVARAV_PHYSICAL_USER'
+
+SSO_REALM_ROLE_PREFIX = 'sso_realm/'
+SSO_REALM_FULL_READ_ONLY = SSO_REALM_ROLE_PREFIX + "tv-translation-memory-service-full-read-only-access"
 
 # Admin permission requires admin role
-admin_permission = Permission(RoleNeed('admin'))
+admin_permission = Permission(RoleNeed(ADMIN))
+full_read_only_permission = Permission(RoleNeed(SSO_REALM_FULL_READ_ONLY))
+
 # User permission requires either admin or user role
-user_permission = Permission(RoleNeed('user')).union(admin_permission)
+# user_permission = Permission(RoleNeed(TOLKEVARAV_PHYSICAL_USER)).union(admin_permission)
 
-def authenticate(username, password):
-  user = Users.query.get(username)
-  if user and user.check_password(password):
-    return user
+create_tag_permission = Permission(RoleNeed('CREATE_TM'))
+edit_tag_permission = Permission(RoleNeed('EDIT_TM_METADATA'))
+import_tm_permission = Permission(RoleNeed('IMPORT_TM'))
+export_tm_permission = Permission(RoleNeed('EXPORT_TM'))
+delete_tm_permission = Permission(RoleNeed('DELETE_TM'))
+view_tm_permission = Permission(RoleNeed('VIEW_TM')).union(full_read_only_permission)
 
-
-def identity(payload):
-  user = Users.query.filter(Users.username == payload['identity']).scalar()
-  if user:
-    # Inform Principal about loaded identity (not sure if it is needed as this happens
-    # before flask-principal package is loaded)
-    identity_loaded.send(current_app._get_current_object(),
-                          identity=Identity(user.id))
-  return user
+def identity(access_token):
+    identity = KeycloakIdentity(access_token=access_token)
+    identity_changed.send(current_app._get_current_object(), identity=identity)
+    return identity
 
 @identity_loaded.connect
-def on_identity_loaded(sender, identity):
-    username = identity.id
-    # Set the identity user object
-    user =  Users.query.get(str(username))
+def on_identity_loaded(sender, identity: KeycloakIdentity):
+  logging.info("UserScopeChecker: identity loaded for insitutionUser: {}; institution: {}".format(identity.institution_user_id, identity.institution_id))
 
-    logging.info("UserScopeChecker: identity loaded for : {}, user object: {}".format(username, user))
 
+  if identity.is_physical_user:
     # Add the UserNeed to the identity
-    identity.provides.add(UserNeed(user.id))
+    identity.provides.add(UserNeed(identity.institution_user_id))
+    # Mark user as physical user
+    identity.provides.add(RoleNeed(TOLKEVARAV_PHYSICAL_USER))
 
-    # Assuming the User model has a role field, update the
-    # identity with the role that the user provides
-    identity.provides.add(RoleNeed(user.role))
+    # Add all privileges to identity
+    for privilege in identity.privileges:
+      identity.provides.add(RoleNeed(privilege))
+
+  # Mark user as service account
+  for realm_role in identity.realm_access_roles:
+    identity.provides.add(RoleNeed('{}{}'.format(SSO_REALM_ROLE_PREFIX, realm_role)))
+
+  # identity.provides.add(RoleNeed(identity.role))
+  identity.provides.add(RoleNeed('IMPORT_TM'))
 
 
 # Decorator class, combining JWT token check and Principals permission check
@@ -75,7 +89,7 @@ class PermissionChecker:
   # Principal's Permission object
   def __init__(self, permission, jwt_required=_jwt_required):
     self.permission = permission
-    self.jwt_required = jwt_required # function for checking JWT token
+    self.jwt_required = jwt_required  # function for checking JWT token
 
   # Wraps given func with JWT token and Principal permission check
   def __call__(self, func):
@@ -85,21 +99,21 @@ class PermissionChecker:
       self.jwt_required(current_app.config['JWT_DEFAULT_REALM'])
       # Inform Principal about changed identity by sending a signal. Current identity is
       # taken from JWT-provided current_identity object
-      identity_changed.send(current_app._get_current_object(),
-                          identity=Identity(current_identity.id))
+      # identity_changed.send(current_app,
+      #                     identity=current_identity)
       ctx = self.permission.require()
       logging.info("Principal context: {}, identity: {}".format(ctx.__dict__, ctx.identity))
       # Test whether current identity has enough permissions
       try:
         self.permission.test()
       except PermissionDenied as e:
-        logging.info("PermissionChecker: denied access to: {}, reason: {}".format(current_identity.id, str(e)))
+        logging.info("PermissionChecker: denied access to institutionUser: {}; reason: {}".format(current_identity.institution_user_id, str(e)))
         abort(403, message="You don't have sufficient permissions for this operation")
-      logging.info("PermissionChecker: authorized access to: {}".format(current_identity.id))
+      logging.info("PermissionChecker: authorized access to institutionUser: {}".format(current_identity.institution_user_id))
       return func(*args, **kwargs)
     return wrapper
 
-from RestApi.Models import Users
+# from RestApi.Models import Users
 
 # Check user scope (language pair, domain, usage limit)
 class UserScopeChecker:
@@ -107,16 +121,21 @@ class UserScopeChecker:
   @staticmethod
   def check(lang_pair, domain, is_update=False, is_import=False, is_export=False):
     user = current_identity
-    status = UserScopeChecker._check(user, "_".join(lang_pair), domain, is_update, is_import, is_export)
+
+    failed = is_update and not user.can(Permission(RoleNeed('IMPORT_TM'))) or \
+             is_import and not user.can(Permission(RoleNeed('IMPORT_TM'))) or \
+             is_export and not user.can(Permission(RoleNeed('EXPORT_TM')))
+
+    status = not failed
+
     if not status:
-      logging.info(
-        "UserScopeChecker: access denied to {}, language pair: {}, domain: {}, update: {}".format(user.id,
-                                                                                                       lang_pair,
-                                                                                                       domain,
-                                                                                                       is_update))
+      message = "UserScopeChecker: access denied to {}, language pair: {}, domain: {}, update: {}"
+      logging.info(message.format(user.id, lang_pair, domain, is_update))
       return False
-    logging.info("UserScopeChecker: authorized access to: {}, language pair: {}, domain: {}, update: {}".format(user.id, lang_pair, domain, is_update))
-    return True
+    else:
+      message = "UserScopeChecker: authorized access to: {}, language pair: {}, domain: {}, update: {}"
+      logging.info(message.format(user.id, lang_pair, domain, is_update))
+      return True
 
   @staticmethod
   def filter_lang_pairs(lp_str_list, allow_reverse=False): # for ex. ['en_es', 'en_ar']
@@ -144,33 +163,17 @@ class UserScopeChecker:
 
   @staticmethod
   def filter_domains(domains, lp=None, key_fn=lambda k: k, allow_unspecified=True):
-    if not domains: domains = []
-    user = current_identity
-    if not user.scopes:
-      if user.role == Users.ADMIN:
-        return domains # no scope defined, all pairs are accessible
-      else:
-        return [d for d in domains if d["type"] == "public" or allow_unspecified and d["type"] == "unspecified" ] # return only public and unspecified tags
+    if (current_identity.can(Permission(RoleNeed(SSO_REALM_FULL_READ_ONLY)))):
+      return domains
 
-    domain_list = list()
-    for scope in user.scopes:
-      if not UserScopeChecker._is_valid(scope): continue
-      if lp and not UserScopeChecker._check_pattern(scope.lang_pairs, lp): continue
-      for d in domains :
-        # TODO: what to do with unspecified?
-        if d["type"] == "public" \
-                or (allow_unspecified and d["type"] == "unspecified") \
-                or UserScopeChecker._check_pattern(scope.domains, key_fn(d)):
-          domain_list.append(d)
-    # Remove duplicates
-    return list({key_fn(v):v for v in domain_list}.values())
+    return [d for d in domains if d["type"] == "public" or allow_unspecified and d["type"] == "unspecified" or str(d['institution_id']) == current_identity.institution_id]  # return only public and unspecified tags
 
 
   @staticmethod
   def _check(user, lang_pair_str, domain_list, is_update, is_import, is_export):
     if not user.scopes or not domain_list:
       # Deny actions
-      if current_identity.role != Users.ADMIN  and (is_update or is_import or is_export): return False
+      if current_identity.role != ADMIN and (is_update or is_import or is_export): return False
       return True
 
     today = datetime.date.today()
@@ -226,35 +229,23 @@ class UserScopeChecker:
     return False
 
 
-def jwt_request_handler():
-    auth_header_value = request.headers.get('Authorization', None)
-    auth_header_prefix = current_app.config['JWT_AUTH_HEADER_PREFIX']
+def decode_handler(token):
+  leeway = current_app.config['JWT_LEEWAY']
+  verify_claims = current_app.config['JWT_VERIFY_CLAIMS']
+  required_claims = current_app.config['JWT_REQUIRED_CLAIMS']
 
-    # If no header, try extracting token from the 'token' parameter
-    if not auth_header_value:
-      token = request.args.get('token')
-      if token: auth_header_value = '{} {}'.format(auth_header_prefix, token)
+  options = {
+    'verify_' + claim: True
+    for claim in verify_claims
+  }
 
-    if not auth_header_value:
-      return
+  options.update({
+    'require_' + claim: True
+    for claim in required_claims
+  })
 
-    parts = auth_header_value.split()
-
-    if parts[0].lower() != auth_header_prefix.lower():
-      raise JWTError('Invalid JWT header', 'Unsupported authorization type')
-    elif len(parts) == 1:
-      raise JWTError('Invalid JWT header', 'Token missing')
-    elif len(parts) > 2:
-      raise JWTError('Invalid JWT header', 'Token contains spaces')
-
-    return parts[1]
-
-def jwt_payload_handler(identity):
-  payload = _default_jwt_payload_handler(identity)
-  user = Users.query.filter(Users.username == payload['identity']).scalar()
-  # If user has a normal token (with expiration date), handle as usual
-  # Also, force admin user to have expiring token for security reasons
-  if not user or user.token_expires or user.role == Users.ADMIN: return payload
-  # Put maximal datetime as a timestamp to make non-expiring token
-  payload['exp'] = datetime.datetime.max
-  return payload
+  header = jwt.get_unverified_header(token)
+  alg = header["alg"]
+  kid = header["kid"]
+  jwk = current_app.keycloak.get_jwk(kid)
+  return jwt.decode(token, jwk.key, options=options, algorithms=[alg], leeway=leeway, audience=['account'])

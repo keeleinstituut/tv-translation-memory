@@ -1,4 +1,20 @@
+# syntax = docker/dockerfile:1.4.0
+
+FROM docker.io/bitnami/spark:3.4 as spark
+
+FROM node:latest as node
+
+COPY . /app
+RUN npm install apidoc -g
+
+WORKDIR /app/src/RestApi
+RUN apidoc -i . -o ../../doc_build
+
+
 FROM python:3.9.17-bullseye
+
+ENV SPARK_HOME /opt/bitnami/spark
+COPY --from=spark $SPARK_HOME $SPARK_HOME
 
 ARG TARGETARCH
 ENV DEBIAN_FRONTEND noninteractive
@@ -7,21 +23,21 @@ ENV ELASTICTM_VOLUME /elastictm
 ENV GUNICORN_WORKERS 4
 VOLUME $ELASTICTM_VOLUME
 
-# LEGACY: This user never appears to be used for anything.
-RUN useradd -ms /bin/bash activatm
+COPY --from=node /app $ELASTICTM
+WORKDIR $ELASTICTM
 
-# LEGACY: The volume at /elastictm and the logs contained in it appear to never get used/modified.
-RUN mkdir -p $ELASTICTM_VOLUME/log/elastictm && \
-    touch $ELASTICTM_VOLUME/log/elastictm/gunicorn.log $ELASTICTM_VOLUME/log/elastictm/celery-worker.log && \
-    chmod -R oag+w $ELASTICTM_VOLUME/log/elastictm
-# LEGACY: Due to the log files remaining empty, Logrotate will be passive in the container.
-COPY conf/logrotate.conf /etc/logrotate.d/activatm
-
-# Create directory/files for Gunicorn logs
-WORKDIR $ELASTICTM/log
-RUN chmod 777 . && \
-    touch gunicorn.log && \
-    chmod 666 gunicorn.log
+## LEGACY: The volume at /elastictm and the logs contained in it appear to never get used/modified.
+#RUN mkdir -p $ELASTICTM_VOLUME/log/elastictm && \
+#    touch $ELASTICTM_VOLUME/log/elastictm/gunicorn.log $ELASTICTM_VOLUME/log/elastictm/celery-worker.log && \
+#    chmod -R oag+w $ELASTICTM_VOLUME/log/elastictm
+## LEGACY: Due to the log files remaining empty, Logrotate will be passive in the container.
+#RUN ln -s conf/logrotate.conf /etc/logrotate.d/activatm
+#
+## Create directory/files for Gunicorn logs
+#WORKDIR $ELASTICTM/log
+#RUN chmod 777 . && \
+#    touch gunicorn.log && \
+#    chmod 666 gunicorn.log
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -79,8 +95,7 @@ RUN if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
     ldconfig
 
 # Install Python dependencies
-WORKDIR /tmp
-COPY requirements.txt .
+WORKDIR $ELASTICTM
 RUN pip install --no-cache-dir -r requirements.txt
 
 # If running on ARM architecture, download, build and install Mykytea-python from source (see https://github.com/chezou/Mykytea-python/pull/24)
@@ -109,21 +124,32 @@ RUN git clone https://github.com/cservan/tercpp.git && \
     # TODO: Verify checksum before continuing?
     python setup.py build install
 
-COPY docker/wait-for-postgres.sh ~/
+RUN touch ${ELASTICTM}/run-webserver.sh
+RUN chmod +x ${ELASTICTM}/run-webserver.sh
+RUN <<EOF cat > ${ELASTICTM}/run-webserver.sh
+#!/bin/sh
+set -e
+cd ${ELASTICTM}/src
+flask --app RestApi.Api run --host=0.0.0.0 \$@
+EOF
 
-COPY . $ELASTICTM
+RUN touch ${ELASTICTM}/run-celery.sh
+RUN chmod +x ${ELASTICTM}/run-celery.sh
+RUN <<EOF cat > ${ELASTICTM}/run-celery.sh
+#!/bin/sh
+set -e
+cd ${ELASTICTM}/src
+celery --app RestApi.Celery.main_celery worker
+EOF
 
-# Start Gunicorn
-USER www-data
-WORKDIR $ELASTICTM/src/RestApi
-CMD tail -f $ELASTICTM/log/gunicorn.log & \
-    gunicorn \
-    -m 007 \
-    --bind 0.0.0.0:5000 \
-    --workers $GUNICORN_WORKERS \
-    --bind unix:/tmp/activatm.sock \
-    --error-logfile $ELASTICTM/log/gunicorn.log \
-    --access-logfile $ELASTICTM/log/gunicorn.log \
-    --capture-output \
-    --log-level INFO \
-     Api:app
+RUN touch ${ELASTICTM}/run-shell.sh
+RUN chmod +x ${ELASTICTM}/run-shell.sh
+RUN <<EOF cat > ${ELASTICTM}/run-shell.sh
+#!/bin/sh
+set -e
+cd ${ELASTICTM}/src
+flask --app RestApi.Api shell
+EOF
+
+WORKDIR $ELASTICTM
+CMD ["sleep", "infinity"]

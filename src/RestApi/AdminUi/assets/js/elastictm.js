@@ -28,15 +28,31 @@ function ElasticTm(url, version=1) {
 }
 
 ElasticTm.prototype._call_api = function(api, type, data, extra_params={}) {
+    var contentType = null;
+    var body = data;
+    var dataType = null;
+
+    if (data instanceof FormData) {
+      // skip
+    } else if (typeof data == "object"){
+        contentType = 'application/json'
+        body = JSON.stringify(data)
+        dataType = 'json'
+    }
+
     var params = {
         url: this.url + api,
-        dataType : 'json',
-        data: data,
+        dataType : dataType,
+        data: body,
         type: type,
         beforeSend : function(xhr) {
-            //xhr.setRequestHeader("Accept", "application/json");
-            //xhr.setRequestHeader("Content-Type", "application/json");
-            xhr.setRequestHeader("Authorization", "JWT " + window.token);
+            // xhr.setRequestHeader("Accept", "application/json");
+            // xhr.setRequestHeader("Content-Type", "application/json");
+            if (contentType) {
+                xhr.setRequestHeader("Content-Type", contentType);
+            }
+            xhr.setRequestHeader("Authorization", "Bearer " + window.token);
+            // xhr.setRequestHeader("Authorization", "JWT " + window.token);
         },
         error : function(XMLHttpRequest, textStatus, errorThrown) {
             console.log(errorThrown);
@@ -79,17 +95,47 @@ ElasticTm.prototype.token = function(extra_params={}) {
 }
 
 
-ElasticTm.prototype.login = function(username, password) {
+ElasticTm.prototype.login = function(idcode, institution_id) {
     window.token = null;
 
+    // return $.ajax({
+    //     url: this.url + "/auth",
+    //     type: 'POST',
+    //     dataType : 'json',
+    //     data: JSON.stringify({ username : username, password : password }),
+    //     beforeSend : function(xhr) {
+    //         xhr.setRequestHeader("Accept", "application/json");
+    //         xhr.setRequestHeader("Content-Type", "application/json");
+    //     },
+    //     error : function(XMLHttpRequest, textStatus, errorThrown) {
+    //         console.log(errorThrown);
+    //         alert('Failed to connect to: ' + this.url);
+    //     },
+    //     success: function(data) {
+    //         console.log(data);
+    //         window.token = data['access_token'];
+    //     }
+    // });
+
+
+    // return new Promise(resolve => {
+    //     console.log(idcode)
+    //     console.log(institution_id)
+    //     window.token = 'token content'
+    //     resolve()
+    // })
+
     return $.ajax({
-        url: this.url + "/auth",
+        url: 'https://sso.dev.tolkevarav.eki.ee/realms/tolkevarav-dev/protocol/openid-connect/token',
         type: 'POST',
-        dataType : 'json',
-        data: JSON.stringify({ username : username, password : password }),
-        beforeSend : function(xhr) {
-            xhr.setRequestHeader("Accept", "application/json");
-            xhr.setRequestHeader("Content-Type", "application/json");
+        data: new URLSearchParams({
+            client_id: 'web',
+            grant_type: 'password',
+            id_code: idcode,
+        }).toString(),
+        beforeSend: function(xhr) {
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+            xhr.setRequestHeader("X-Selected-Institution-ID", institution_id)
         },
         error : function(XMLHttpRequest, textStatus, errorThrown) {
             console.log(errorThrown);
@@ -99,33 +145,57 @@ ElasticTm.prototype.login = function(username, password) {
             console.log(data);
             window.token = data['access_token'];
         }
-    });
+    })
 }
 
 ElasticTm.prototype.import = function(file, domains, extra_params={}) {
 //ElasticTm.prototype.import = function(formData) {
+//     var formData = new FormData();
+//     formData.append('file', file);
+//     domains_str = "tag=" + domains.join("&tag=")
+//     // Actual call
+//     params = { processData: false,  // tell jQuery not to process the data
+//                 contentType: false,  // tell jQuery not to set contentType),
+//                 };
+//     jQuery.extend(params, extra_params);
+//     return this._call_api('/tm/import?' + domains_str,
+//                            'PUT',
+//                            formData,
+//                            params);
+
     var formData = new FormData();
     formData.append('file', file);
-    domains_str = "tag=" + domains.join("&tag=")
+    domains.map(function (domain) {
+        formData.append('tag', domain)
+    });
+
     // Actual call
-    params = { processData: false,  // tell jQuery not to process the data
-                contentType: false,  // tell jQuery not to set contentType),
-                };
+    params = {
+        processData: false,  // tell jQuery not to process the data
+        contentType: false,  // tell jQuery not to set contentType),
+    };
     jQuery.extend(params, extra_params);
-    return this._call_api('/tm/import?' + domains_str,
-                           'PUT',
-                           formData,
-                           params);
+    return this._call_api('/tm/import',
+        'PUT',
+        formData,
+        params);
 }
 
 ElasticTm.prototype.export = function(slang, tlang, filters, extra_params={}) {
-    lang_params = "slang=" + slang + "&tlang=" + tlang;
+    // lang_params = "slang=" + slang + "&tlang=" + tlang;
 
     // Filter params
-    out = this._join_params(filters)
-    if (out) { out = '&' + out; } // prepend '&'
+    // out = this._join_params(filters)
+    // if (out) { out = '&' + out; } // prepend '&'
 
-    return this._call_api('/tm/export?' + lang_params + out, 'POST', "", extra_params);
+    const body = {
+        slang: slang,
+        tlang: tlang,
+        ...filters,
+    }
+
+    // return this._call_api('/tm/export?' + lang_params + out, 'POST', "", extra_params);
+    return this._call_api('/tm/export', 'POST', body, extra_params);
 
 }
 
@@ -148,7 +218,8 @@ ElasticTm.prototype.export_download = function(export_id, filename, extra_params
 
     xhr.responseType = "blob";
     xhr.withCredentials = true;
-    xhr.setRequestHeader('Authorization', 'JWT '+ window.token);
+    // xhr.setRequestHeader('Authorization', 'JWT '+ window.token);
+    xhr.setRequestHeader('Authorization', 'Bearer '+ window.token);
 
     xhr.onreadystatechange = function (){
         if (xhr.readyState === 4) {
@@ -204,21 +275,39 @@ ElasticTm.prototype.delete = function(slang, tlang, filters, extra_params={}) {
 
 
 ElasticTm.prototype.maintain = function(slang, tlang, action, filters, extra_params={}) {
-    lang_params = "slang=" + slang + "&tlang=" + tlang;
+    // lang_params = "slang=" + slang + "&tlang=" + tlang;
+    //
+    // // Filter params
+    // out = this._join_params(filters)
+    // if (out) { out = '&' + out; } // prepend '&'
 
-    // Filter params
-    out = this._join_params(filters)
-    if (out) { out = '&' + out; } // prepend '&'
+    const body = {
+        slang: slang,
+        tlang: tlang,
+        ...filters,
+    }
 
-    return this._call_api('/tm/' + action + '?' + lang_params + out, 'POST', "", extra_params);
+
+    // return this._call_api('/tm/' + action + '?' + lang_params + out, 'POST', "", extra_params);
+    return this._call_api('/tm/' + action, 'POST', body, extra_params);
 }
 
 
 ElasticTm.prototype.generate = function(slang, tlang, plang, domain, force=false, extra_params={}) {
     // Actual call
-    params = "slang=" + slang + "&tlang=" + tlang + "&plang=" + plang + "&tag=" + domain + "&force=" + force;
-    return this._call_api('/tm/generate?' + params, 'PUT', "",
-                           extra_params);
+    // params = "slang=" + slang + "&tlang=" + tlang + "&plang=" + plang + "&tag=" + domain + "&force=" + force;
+    // return this._call_api('/tm/generate?' + params, 'PUT', "",
+    //                        extra_params);
+
+    const body = {
+        slang: slang,
+        tlang: tlang,
+        plang: plang,
+        tag: domain,
+        force: force
+    }
+    return this._call_api('/tm/generate', 'PUT', body, extra_params);
+
 }
 
 
@@ -261,16 +350,25 @@ ElasticTm.prototype.set_user = function(user_json, extra_params={}) {
     if(!user_json['password']) {
         delete user_json['password'];
     }
-    params = new Array();
-    param_names = ["role", "is_active", "password", "token_expires"]
-    for (var i = 0; i < param_names.length; i++) {
-        key = param_names[i]
-        if (key in user_json) {
-            params[key] = user_json[key];
-        }
+    // params = new Array();
+    // param_names = ["role", "is_active", "password", "token_expires"]
+    // for (var i = 0; i < param_names.length; i++) {
+    //     key = param_names[i]
+    //     if (key in user_json) {
+    //         params[key] = user_json[key];
+    //     }
+    // }
+    // params_str = this._join_params(params);
+    // return this._call_api('/users/' + user_json['username'] + '?' + params_str , 'POST', "", extra_params);
+
+    var body = {
+        role: user_json['role'],
+        is_active: user_json['is_active'],
+        password: user_json['password'],
+        token_expires: user_json['token_expires'],
     }
-    params_str = this._join_params(params);
-    return this._call_api('/users/' + user_json['username'] + '?' + params_str , 'POST', "", extra_params);
+
+    return this._call_api('/users/' + user_json['username'], 'POST', body, extra_params);
 }
 
 ElasticTm.prototype.delete_user = function(username, extra_params={}) {
@@ -279,8 +377,7 @@ ElasticTm.prototype.delete_user = function(username, extra_params={}) {
 }
 
 ElasticTm.prototype.set_user_scope = function(scope_json, extra_params={}) {
-    params_str = this._join_params(scope_json);
-    return this._call_api('/users/' + scope_json['username'] + '/scopes?' + params_str , 'POST', "", extra_params);
+    return this._call_api('/users/' + scope_json['username'] + '/scopes' , 'POST', scope_json, extra_params);
 }
 
 ElasticTm.prototype.delete_user_scope = function(username, scope_id, extra_params={}) {
@@ -291,7 +388,8 @@ ElasticTm.prototype.delete_user_scope = function(username, scope_id, extra_param
 
 ElasticTm.prototype.jobs = function(job_id="", limit=100) {
     job_id = job_id ? "/" + job_id : job_id;
-    return this._call_api('/jobs' + job_id + "?limit=" + limit, 'GET', "");
+    // return this._call_api('/jobs' + job_id + "?limit=" + limit, 'GET', "");
+    return this._call_api('/jobs' + job_id, 'GET', {});
 }
 
 ElasticTm.prototype.kill_job = function(job_id, extra_params={}) {
@@ -314,8 +412,13 @@ ElasticTm.prototype.get_tag = function(tag_id, extra_params={}) {
 
 ElasticTm.prototype.set_tag = function(tag, extra_params={}) {
     // Actual call
-    return this._call_api('/tags/' + tag["id"] + "?type=" + tag["type"] + "&name=" + tag["name"], 'POST', "",
-                           extra_params);
+    // return this._call_api('/tags/' + tag["id"] + "?type=" + tag["type"] + "&name=" + tag["name"], 'POST', "",
+    //                        extra_params);
+    var body = {
+        type: tag['type'],
+        name: tag['name'],
+    }
+    return this._call_api('/tags/' + tag["id"], 'POST', body, extra_params);
 }
 
 ElasticTm.prototype.delete_tag = function(tag_id, extra_params={}) {

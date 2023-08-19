@@ -21,17 +21,19 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask_restful import Resource, abort, inputs
+
+from flask_restful import Resource, abort
 from flask_restful.reqparse import RequestParser
 
-from flask_jwt import current_identity
+from lib.flask_jwt import current_identity, jwt_required
 
 from RestApi.Models import Tags, CRUD
-from Auth import admin_permission, user_permission, PermissionChecker, UserScopeChecker
+from Auth import admin_permission, PermissionChecker, UserScopeChecker
 from TMPreprocessor.TMRegExpPreprocessor import TMRegExpPreprocessor
 
 class TagsResource(Resource):
-  decorators = [PermissionChecker(user_permission)]
+  # decorators = [PermissionChecker(user_permission)]
+  decorators = [jwt_required()]
   regex_pp = TMRegExpPreprocessor()
 
   """
@@ -53,19 +55,21 @@ class TagsResource(Resource):
     if tag_id:
       tag = Tags.query.get(tag_id)
       if tag:
-        tags =  [tag.to_dict()]
+        tags = [tag.to_dict()]
       else:
-        abort(404, mesage="Tag {} doesn't exist".format(tag_id))
+        abort(404, message="Tag {} doesn't exist".format(tag_id))
     else:
         tags = [tag.to_dict() for tag in Tags.query.all()]
     # Filter scopes according to permissions
     tags = UserScopeChecker.filter_domains(tags, key_fn=lambda t: t["id"])
     if tag_id:
       if not tags:
-        abort(404, mesage="Tag {} doesn't exist".format(tag_id))
+        abort(404, message="Tag {} doesn't exist".format(tag_id))
       return tags[0]
-    # List of all users
-    return {'tags': tags}
+    # List of all tags
+    return {
+      'tags': tags
+    }
 
 
   """
@@ -83,27 +87,34 @@ class TagsResource(Resource):
   @apiError {String} 403 Insufficient permissions
 
   """
-  @admin_permission.require(http_exception=403)
-  def post(self, tag_id):
+  # @admin_permission.require(http_exception=403)
+  def post(self, tag_id=None):
     args = self._reqparse()
-    tag = Tags.query.get(tag_id)
+    tag = None
 
     try:
-      if tag:
+      if tag_id:
+        tag = Tags.query.get(tag_id)
+        if not tag:
+          abort(404, message="Tag {} doesn't exist".format(tag_id))
         tag.update(**args)
         CRUD.update()
       else:
-        tag = Tags(tag_id, **args)
+        tag = Tags(
+          institution_id=current_identity.institution_id,
+          **args)
         CRUD.add(tag)
     except Exception as e:
       abort(500, message=str(e))
-    return {"message" : "Tag {} added/updated successfully".format(tag_id)}
+    return {
+      "message": "Tag {} added/updated successfully".format(tag.id),
+      "tag": tag.to_dict()
+    }
 
   def _reqparse(self):
       parser = RequestParser(bundle_errors=True)
       parser.add_argument(name='name', help="Tag name")
       parser.add_argument(name='type', help="Tag type")
-
       return parser.parse_args()
 
 
@@ -124,11 +135,17 @@ class TagsResource(Resource):
   @admin_permission.require(http_exception=403)
   def delete(self, tag_id):
     tag = Tags.query.get(tag_id)
+    tags = UserScopeChecker.filter_domains([tag], key_fn=lambda t: t["id"])
+    tag = tags[0] if tags else None
+
     if tag:
       try:
         CRUD.delete(tag)
       except Exception as e:
         abort(500, message=str(e))
     else:
-      abort(404, mesage="Tag {} doesn't exist".format(tag_id))
-    return {"message" : "Tag {} deleted successfully".format(tag_id)}
+      abort(404, message="Tag {} doesn't exist".format(tag_id))
+    return {
+      "message": "Tag {} deleted successfully".format(tag_id),
+      "tag": tag.to_dict()
+    }

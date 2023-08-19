@@ -23,13 +23,13 @@
 #
 from flask_restful import Resource, abort
 from flask_restful.reqparse import RequestParser
-from celery import shared_task
-from flask_jwt import current_identity, jwt_required
+from lib.flask_jwt import current_identity, jwt_required
 
-from Auth import admin_permission, user_permission, PermissionChecker
-from RestApi.Models import Users
+from Auth import admin_permission
+from RestApi.Celery import job_kill_task
 from JobApi.ESJobApi import ESJobApi
-from JobApi.SparkTaskDispatcher import SparkTaskDispatcher
+from RestApi.Auth import ADMIN
+
 
 class JobsResource(Resource):
   decorators = [jwt_required()]
@@ -52,19 +52,18 @@ class JobsResource(Resource):
 
   """
   # TODO: accept limit as a parameter
-  #@user_permission.require(http_exception=403)
-  #@admin_permission.require(http_exception=403)
+  @admin_permission.require(http_exception=403)
   def get(self, job_id=None):
     args = self._get_reqparse()
     jobs = []
-    username_filter = current_identity.username if current_identity.role != Users.ADMIN else None
+    username_filter = current_identity.id if current_identity.role != ADMIN else None
     if job_id:
       try:
         job = self.job_api.get_job(job_id)
         if username_filter and username_filter != job["username"]:
             abort(403, mesage="No permission to view status of job {}".format(job_id))
         jobs.append(job)
-      except:
+      except Exception:
         abort(401, mesage="Job {} doesn't exist".format(job_id))
     else:
       for job in self.job_api.scan_jobs(args.limit, username_filter):
@@ -72,9 +71,9 @@ class JobsResource(Resource):
     return {"jobs" : jobs}
 
   def _get_reqparse(self):
-    parser = RequestParser()
+    parser = RequestParser(bundle_errors=True)
     parser.add_argument(name='limit', type=int, default=10,
-                        help="Limit output to this number of jobs")
+                        help="Limit output to this number of jobs", location='args')
     return parser.parse_args()
 
   """
@@ -92,10 +91,5 @@ class JobsResource(Resource):
   @admin_permission.require(http_exception=403)
   def delete(self, job_id):
     # Setup a job using Celery & ES
-    task = self.kill_task.apply_async([job_id])
+    task = job_kill_task.apply_async([job_id])
     return {"job_id": task.id, "message": "Job submitted successfully"}
-
-  @shared_task(bind=True)
-  def kill_task(self, job_id):
-    SparkTaskDispatcher().run(job_id, 'KillTask')
-    return {'status': 'Task completed!'}

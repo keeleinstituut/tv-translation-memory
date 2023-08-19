@@ -75,16 +75,20 @@ class ESJobApi(JobApi):
     self.update_job(job_id, doc)
 
   def get_job(self, job_id):
-    doc = self.es.get(index=self.INDEX, doc_type=self.DOC_TYPE, id=job_id)
+    # doc = self.es.get(index=self.INDEX, doc_type=self.DOC_TYPE, id=job_id)
+    doc = self.es.get(index=self.INDEX, id=job_id)
     if not doc:
       raise Exception(message="Job {} doesn't exist".format(job_id))
     return doc['_source']
 
   def update_job(self, job_id, doc):
-    self.es.index(index=self.INDEX, id=job_id, doc_type=self.DOC_TYPE, body=doc)
+    # self.es.index(index=self.INDEX, id=job_id, doc_type=self.DOC_TYPE, body=doc)
+    self.es.index(index=self.INDEX, id=job_id, body=doc)
 
   def scan_jobs(self, limit=10, username_filter=None):
-    search = self.es.search(index=self.INDEX).sort('-submit_time')[:limit]
+    search = self.es.search(index=self.INDEX) \
+               .sort('-submit_time')[:limit]
+               # .filter(username=username_filter) \
 
     # TODO: First query - currently running jobs, second one - other jobs
     # q = Q('match', status='running')

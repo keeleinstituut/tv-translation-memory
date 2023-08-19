@@ -19,6 +19,7 @@ click-plugins==1.1.1
 click-repl==0.2.0
 CMRESHandler==1.0.0
 CouchDB==1.2
+cryptography==41.0.3
 cycler==0.10.0
 decorator==4.4.2
 defusedxml==0.6.0
@@ -31,7 +32,6 @@ et-xmlfile==1.0.1
 executing==1.2.0
 filelock==3.12.2
 Flask==2.2.5
-Flask-JWT==0.3.2
 flask-oidc==1.4.0
 Flask-Principal==0.4.0
 Flask-RESTful==0.3.10
@@ -89,7 +89,7 @@ pyasn1==0.5.0
 pyasn1-modules==0.3.0
 pycurl==7.43.0.6
 Pygments==2.7.1
-PyJWT==1.4.2
+PyJWT==2.8.0
 pymongo==4.3.3
 pyparsing==2.4.7
 pyresttest==1.7.1

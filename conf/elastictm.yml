@@ -4,20 +4,30 @@ general:
   # TODO: other settings (number of cores, memory limit etc.)
 
 spark:
-  path: /opt/spark-2.4.4-bin-hadoop2.7/
-  master_path: local[8]
+#  path: /opt/spark-2.4.4-bin-hadoop2.7/
+  path: /opt/bitnami/spark
+  master_path: local[${SPARK_WORKER_COUNT}]
+#  master_path: spark://spark:7077
   segments_per_task: 10000
 
 opensearch:
-  host: opensearch-node # 127.0.0.1
-  port: 9200
+  host: ${OPENSEARCH_HOST} # 127.0.0.1
+  port: ${OPENSEARCH_PORT}
 
 postgresql:
-  host: postgres # localhost
-  port: 5432 # 5433
-  db: activatm
-  user: activatm
-  password: activatm
+  host: ${POSTGRES_HOST} # localhost
+  port: ${POSTGRES_PORT} # 5433
+  db: ${POSTGRES_DB}
+  user: ${POSTGRES_USER}
+  password: ${POSTGRES_PASSWORD}
+
+redis:
+  host: ${REDIS_HOST}
+  port: ${REDIS_PORT}
+
+keycloak:
+  url: ${KEYCLOAK_URL}
+  realm: ${KEYCLOAK_REALM}
 
 query:
     #Penalize match if segment doesn't belong to requested domain or it is a dirty segment
