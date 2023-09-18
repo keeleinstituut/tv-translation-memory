@@ -30,7 +30,9 @@ class OpenSearchHelper():
     def indices_exists(self, index):
         return self.es.indices.exists(index)
 
-    def index(self, index, doc_type, id, body, ignore=409):
+    # def index(self, index, doc_type, id, body, ignore=409):
+    def index(self, index, id, body, ignore=409):
+
         return self.es.index(index=index,
                                id=id,
                                body=body,

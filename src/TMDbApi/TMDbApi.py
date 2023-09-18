@@ -69,12 +69,12 @@ class TMDbApi:
     self.seg_map = TMMap.create(map_engine)
     self.timer = TMTimer("TMDbApi")
     self.scan_size = 0
-    self._migrate_tags()
+    # self._migrate_tags()
 
   # Migrate tags (if needed) from
-  def _migrate_tags(self):
-    stats = self.mstats()
-    Tags.get_add_tags(stats.get("domain", dict()).keys())
+  # def _migrate_tags(self):
+  #   stats = self.mstats()
+  #   Tags.get_add_tags(stats.get("domain", dict()).keys(), institution_id=None)
 
   # Add new segment
   def add_segment(self, segment):
@@ -162,7 +162,8 @@ class TMDbApi:
       # Query source ES for the text
       self.timer.start("monoling_query")
 
-      for q, qinfo ,response in zip(qparams.qlist, qparams.qinfo ,self.ml_index.mquery(qparams.source_lang, qparams.limit, [q_o_tags for q, q_o_tags in q_out_tags], filter = [f for f in dic_filter])):
+      loopArray = zip(qparams.qlist, qparams.qinfo ,self.ml_index.mquery(qparams.source_lang, qparams.limit, [q_o_tags for q, q_o_tags in q_out_tags], filter = [f for f in dic_filter]))
+      for q, qinfo ,response in loopArray:
         self.timer.stop("monoling_query")
         out_segments.append((q, self._query(q, qinfo, response, qparams)))  # create new list for current query
 
@@ -328,12 +329,22 @@ class TMDbApi:
     return stats
 
   def mstats(self):
+    keymapping = {
+      'domain.keyword': 'domain',
+      'file_name.keyword': 'file_name',
+
+    }
+    lang_pairs_raw = self.seg_map.mcount_buckets(['file_name.keyword', 'domain.keyword'])
+    lang_pairs = {lang_pair: {keymapping.get(key, key): value for key, value in pair_value.items()} for lang_pair, pair_value in lang_pairs_raw.items()}
+
     stats = dict()
-    stats['lang_pairs'] = self.seg_map.mcount_buckets(['file_name', 'domain'])
+    stats['lang_pairs'] = lang_pairs
+
     for lp,bucket_dict in stats['lang_pairs'].items():
       for bucket_name,bucket_value_dict in bucket_dict.items():
         for bucket_value,count in bucket_value_dict.items():
-          d = stats.setdefault(bucket_name, dict())
+          mapped_bucket_name = keymapping.get(bucket_name, bucket_name)
+          d = stats.setdefault(mapped_bucket_name, dict())
           d.setdefault(bucket_value, 0)
           d[bucket_value] += count
     for lp,count in self.seg_map.mcount().items():
@@ -422,17 +433,16 @@ class TMDbApi:
     new_segments = []
     logging.info("Match segments: {}".format(segments))
     for segment, ter in segments: # This one is for each segment
-      if not new_segments: new_segments = segments
+      # if not new_segments: new_segments = segments
 
       # Commented for now, as it is not clear and when query is running fast, it doesn't work
-      '''
       # Check time
       wait_time  = self.MATCH_TIME[0] if qparams.aut_trans else self.MATCH_TIME[1]
       if timer() - self.timer.ts["match_time_query"] > wait_time:
         if not new_segments: new_segments = segments # make sure we are not returning empty results
         logging.info("Matching segments (1)")
         break
-      '''
+      ####
 
       # Adjust match % according to filters
       if ter >= qparams.min_match:

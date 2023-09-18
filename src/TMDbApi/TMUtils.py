@@ -107,11 +107,13 @@ class TMTimer:
     self.log_level = log_level
 
   def start(self, stage):
+    print("TIMER START " + stage)
     if not stage in self.stages:
       self.stages[stage] = 0
     self.ts[stage] = timer()
 
   def stop(self, stage):
+    print("TIMER STOP  " + stage)
     if not stage in self.stages or not stage in self.ts:
       return;
     self.stages[stage] += timer() - self.ts[stage]

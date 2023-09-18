@@ -41,10 +41,12 @@ class TMMapES(TMMap):
   def __init__(self):
     self.es = OpenSearchHelper()
     self.DOC_TYPE = 'id_map'
+    self.scan_size = 9999999
+
     self.refresh_lang_graph()
     self.es.indices_put_template(name='map_template', body=self._index_template())
+    self.es.indices_put_mapping(index="{}*".format(TMUtils.MAP_PREFIX), body=self._update_mapping_script())
     self.es.put_script(index=TMMapES.UPSERT_SCRIPT, body=self._upsert_script())
-    self.scan_size = 9999999
 
     self.timer = TMTimer("TMMapES")
 
@@ -243,7 +245,6 @@ class TMMapES(TMMap):
     return dict([(re.sub("^{}".format(TMUtils.MAP_PREFIX), "", f.key),f.doc_count) for f in res.aggregations['values'].buckets])
 
   def mcount_buckets(self, buckets):
-    self.es.indices_put_mapping(index="{}*".format(TMUtils.MAP_PREFIX), body=self._update_mapping_script())
     ms = self.es.multi_search()
     for bucket_name in buckets:
       search = self.es.search(index="{}*".format(TMUtils.MAP_PREFIX))
@@ -397,6 +398,7 @@ class TMMapES(TMMap):
   def _index_template(self):
     props = dict()
     # Create mapping for field: source_id, target_text etc.
+
     for t in ['source', 'target']:
       for f in ['id', 'text', 'language']:
         props['_'.join([t, f])] = {
@@ -420,7 +422,7 @@ class TMMapES(TMMap):
       "type": "integer",
     }
 
-    template =  {
+    template = {
       "index_patterns": [
         "map_*"
       ],

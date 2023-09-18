@@ -195,8 +195,10 @@
                 return window.g_elastic_tm.token(
                     {error: function(data) {
                        // Open login modal
-                       $("input#luser").val(window.localStorage.getItem("username"));
-                       $("input#lpassword").val(window.localStorage.getItem("password"));
+                       $("input#lidcode").val(window.localStorage.getItem("idcode"));
+                       $("input#linstitutionid").val(window.localStorage.getItem("institution_id"));
+                       $("input#remember_me").prop('checked', window.localStorage.getItem("remember_me"));
+
                        $('#login_modal').modal('show');
                     },
                     success: function(data) {
@@ -210,10 +212,10 @@
             }
 
 
-            function login(username, password) {
-                return window.g_elastic_tm.login(username,password)
+            function login(idcode, institution_id) {
+                return window.g_elastic_tm.login(idcode, institution_id)
                     .then(function(response) {
-                        return window.g_elastic_tm.users(username)
+                        // return window.g_elastic_tm.users(username)
                     })
                     .then(function(response) {
                         window.user = response;
@@ -223,11 +225,13 @@
             }
 
             function init () {
-                if (window.user.role == "user") {
-                    return init_user();
-                } else {
-                    return init_admin();
-                }
+                // if (window.user.role == "user") {
+                //     return init_user();
+                // } else {
+                //     return init_admin();
+                // }
+                return init_admin()
+                // init_user()
 
             }
 
@@ -245,11 +249,12 @@
                 })
                 .then(function(data) {
                     window.jobs = data;
-                    return window.g_elastic_tm.users()
+                    // return window.g_elastic_tm.users()
+                    return new Promise(resolve => resolve())
                 })
                 .then(function(data) {
-                    window.users = data;
-                    window.changed_users = [];
+                    // window.users = data;
+                    // window.changed_users = [];
                     return window.g_elastic_tm.tags()
                 })
                 .then(function(data) {
@@ -259,7 +264,7 @@
                 })
                 .then(function(data) {
                     window.export = data;
-                    fill_users_table();
+                    // fill_users_table();
                     fill_jobs_table();
                     fill_usage_table();
                     fill_tags_table();
@@ -741,14 +746,23 @@
 
 
             $( "#login_btn" ).click(function() {
-                var username = $('input#luser').val();
-                var password = $('input#lpassword').val();
+                // var username = $('input#luser').val();
+                // var password = $('input#lpassword').val();
+                var idcode = $('input#lidcode').val();
+                var institution_id = $('input#linstitutionid').val();
                 var remember_me = $('input#remember_me').is(':checked');
 
-                login(username, password).then(function() {
+                // login(username, password).then(function() {
+                //     // Update local storage accordingly
+                //     window.localStorage.setItem("username", remember_me ? username : "");
+                //     window.localStorage.setItem("password", remember_me ? password : "");
+                //     $('#login_modal').modal('hide');
+                // })
+                login(idcode, institution_id).then(function() {
                     // Update local storage accordingly
-                    window.localStorage.setItem("username", remember_me ? username : "");
-                    window.localStorage.setItem("password", remember_me ? password : "");
+                    window.localStorage.setItem("idcode", remember_me ? idcode : "");
+                    window.localStorage.setItem("institution_id", remember_me ? institution_id : "");
+                    window.localStorage.setItem("remember_me", remember_me ? remember_me : "");
                     $('#login_modal').modal('hide');
                 })
             });
@@ -798,9 +812,10 @@
             });
 
              // Refresh handling
-            $('a[href="#refresh"]').click(function(){
+            $('a[href="#refresh"]').click(function(e){
+                e.preventDefault();
                 init().then(function() {
-                    $("#stats_tab").trigger("click");
+                    // $("#stats_tab").trigger("click");
                     fill_languages();
                 });
             });

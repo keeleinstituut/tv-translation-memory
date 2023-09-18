@@ -21,14 +21,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import re
-import dateutil
 import datetime
 import logging
+import uuid
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-#from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
 from Config.Config import G_CONFIG
 
 POSTGRESQL_HOST = G_CONFIG.config['postgresql']['host']
@@ -38,11 +35,9 @@ POSTGRESQL_USER = G_CONFIG.config['postgresql']['user']
 POSTGRESQL_PASSWORD = G_CONFIG.config['postgresql']['password']
 
 app = Flask(__name__)
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://' + POSTGRESQL_USER + ':' + POSTGRESQL_PASSWORD + '@' \
                                         + POSTGRESQL_HOST + ':' + str(POSTGRESQL_PORT) + '/' \
                                         + POSTGRESQL_DB + '?client_encoding=utf8'
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://activatm:activatm@localhost/activatm?client_encoding=utf8' #For local debugging
 db = SQLAlchemy(app)
 
 
@@ -89,135 +84,16 @@ class CRUD:
     return d
 
 
-class Users(db.Model):
-  username = db.Column(db.Text, primary_key=True)
-  password = db.Column(db.Text)
-  role = db.Column(db.Text, default="user")
-  token_expires = db.Column(db.Boolean, default=True)
-  is_active = db.Column(db.Boolean, default=True)
-  scopes = db.relationship('UserScopes', backref='user')
-  settings = db.relationship('UserSettings', backref='user')
-
-  created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-
-  # Needed for JWT authentication
-  @property
-  def id(self):
-    return self.username
-
-  ADMIN = 'admin'
-
-  def __init__(self, username, **kwargs):
-    self.username = username
-    self.update(**kwargs)
-
-  def update(self, **kwargs):
-    for key,value in kwargs.items():
-      if value == '': continue
-      if hasattr(self, key): setattr(self, key, value)
-      if key == 'password': self.set_password(value)
-
-  # Add/update user scope
-  def update_scope(self, **kwargs):
-    if 'id' in kwargs and kwargs['id']:
-      scope = UserScopes.query.get(kwargs['id'])
-      if not scope or scope.username != self.username: return None
-    else:
-      scope = UserScopes(self.username)
-
-    for key,value in kwargs.items():
-      if key == "tags":
-        key = "domains" # keep backward compatitbility for now
-      elif not value:
-        continue
-      if re.search('_date$', key):  # convert string to datetime
-        value = dateutil.parser.parse(value)
-      if hasattr(scope, key): setattr(scope, key, value)
-    return scope
-
-  def get_scope(self, id):
-    scope = UserScopes.query.get(id)
-    if not scope or scope.username != self.username:
-      return None
-    return scope
-
-  def delete_scopes(self):
-    UserScopes.query.filter_by(username = self.username).delete()
-
-  def set_password(self, password):
-    self.password = generate_password_hash(password)
-
-  def check_password(self, password):
-    if not self.password: return True
-    if not password: return False
-    return check_password_hash(self.password, password)
-
-  def to_dict(self):
-    d = CRUD.to_dict(self)
-    del d["password"]
-    d["scopes"] = [ s.to_dict() for s in self.scopes]
-    return d
-
-class UserScopes(db.Model):
-  id = db.Column(db.Integer, primary_key=True)
-
-  username = db.Column(db.Text, db.ForeignKey('users.username'))
-
-  # Permission patterns (list of wildcards)
-  lang_pairs = db.Column(db.Text)
-  domains = db.Column(db.Text)
-  # Additional permissions - update, import or export TM
-  can_update = db.Column(db.Boolean, default=False)
-  can_import = db.Column(db.Boolean, default=False)
-  can_export = db.Column(db.Boolean, default=False)
-  # Scope usage limitation (number of queries) and actual usage
-  usage_limit = db.Column(db.Integer, default=0)
-  usage_count = db.Column(db.Integer, default=0)
-
-  # Start/end date of the scope
-  start_date = db.Column(db.Date)
-  end_date = db.Column(db.Date)
-
-  # Scope creation date
-  created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-
-  def __init__(self, username):
-    self.username = username
-
-  def to_dict(self):
-    return CRUD.to_dict(self)
-
-  def increase_usage_count(self, count):
-    #self.usage_count += count
-    # Avoid race condition
-    try:
-      self.usage_count = UserScopes.usage_count + count
-      db.session.commit() # this should solve (or at least minimize deadlock occurrences
-    except Exception:
-      db.session.rollback()
-
-class UserSettings(db.Model):
-  id = db.Column(db.Integer, primary_key=True)
-
-  username = db.Column(db.Text, db.ForeignKey('users.username'))
-  # Regular expressions to apply (separated with comma)
-  regex = db.Column(db.Text)
-
-  def __init__(self, username):
-    self.username = username
-
-  def to_dict(self):
-    return CRUD.to_dict(self)
-
 class Tags(db.Model):
-   id = db.Column(db.Text, primary_key=True)
+   id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
+   institution_id = db.Column(db.Uuid)
    name = db.Column(db.Text)
    type = db.Column(db.Text)
 
-   def __init__(self, id, name, type ):
-     self.id = id
+   def __init__(self, institution_id, name, type):
      self.name = name
      self.type = type
+     self.institution_id = institution_id
 
    def update(self, **kwargs):
      for key,value in kwargs.items():
@@ -229,10 +105,10 @@ class Tags(db.Model):
 
    # Use this method to migrate existing tags (domains) from OpenSearch
    @staticmethod
-   def get_add_tags(tags):
+   def get_add_tags(tags, institution_id):
      for tag_id in tags:
        with app.app_context():
-        if not Tags.query.get(tag_id):
+        if not Tags.query.get((tag_id, institution_id)):
           tag = Tags(tag_id, name=tag_id, type="unspecified")
           CRUD.add(tag)
 

@@ -21,10 +21,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask import Response, request
-from flask_restful import Resource, abort, inputs
-from flask_restful.reqparse import RequestParser
-from werkzeug.datastructures import FileStorage
 import os
 import dateutil.parser
 import tempfile
@@ -32,36 +28,38 @@ import re
 import datetime
 import json
 import logging
+from flask import Response, request
+from flask_restful import Resource, abort, inputs
+from flask_restful.reqparse import RequestParser
+from werkzeug.datastructures import FileStorage
+from lib.flask_jwt import current_identity, jwt_required
 
-from celery import shared_task
+from RestApi.Celery import tm_delete_task, tm_import_task, tm_export_task, tm_generate_task, \
+  tm_pos_tag_task, tm_maintain_task, tm_clean_task
+from RestApi.Auth import ADMIN
+from RestApi.Auth import import_tm_permission, export_tm_permission, delete_tm_permission, view_tm_permission
+from RestApi.Auth import admin_permission, PermissionChecker, UserScopeChecker
 
 from TMDbApi.TMDbApi import TMDbApi
 from TMDbApi.TMUtils import TMUtils
 from TMDbApi.TMTranslationUnit import TMTranslationUnit
 from TMDbApi.TMQueryParams import TMQueryParams
-
-from TMPreprocessor.Xml.XmlUtils import XmlUtils
-
-from TMX.TMXParser import TMXParser
-
 from TMDbApi.TMDbQuery import TMDbQuery
-
-from JobApi.ESJobApi import ESJobApi
-from JobApi.SparkTaskDispatcher import SparkTaskDispatcher
-
-
 from TMDbApi.TMExport import TMExport
-from TMOutputer.TMOutputerMoses import TMOutputerMoses
 from TMDbApi.TMQueryLogger import TMQueryLogger
 
-from Auth import admin_permission, user_permission, PermissionChecker, UserScopeChecker
-from RestApi.Models import Users, Tags
+from TMPreprocessor.Xml.XmlUtils import XmlUtils
+from TMOutputer.TMOutputerMoses import TMOutputerMoses
+from TMX.TMXParser import TMXParser
 
-from flask_jwt import current_identity
+from JobApi.ESJobApi import ESJobApi
+from RestApi.Models import Tags
+
 
 # Search/update/delete segments
 class TmResource(Resource):
-  decorators = [PermissionChecker(user_permission)]
+  # decorators = [PermissionChecker(user_permission)]
+  decorators = [jwt_required()]
 
   db = TMDbApi('opensearch')
   job_api = ESJobApi()
@@ -137,6 +135,7 @@ class TmResource(Resource):
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
 
   """
+  @view_tm_permission.require(http_exception=403)
   def get(self):
     args = self._get_reqparse().parse_args()
     sl = self._detect_lang(args)
@@ -219,7 +218,7 @@ class TmResource(Resource):
                         "tag": filtered_tags
         }
         # TODO: hide some fields for user?
-        if (current_identity.role != Users.ADMIN):
+        if (current_identity.role != ADMIN):
           pass
         r.append(segment_json)
         count += 1
@@ -241,34 +240,23 @@ class TmResource(Resource):
 
   def _get_reqparse(self):
     parser = RequestParser()
-    parser.add_argument(name='q', required=True, help="TM query string is a mandatory option")
-    parser.add_argument(name='slang', help="Source language is a desired option", type=self._validate_lang)
-    parser.add_argument(name='tlang', required=True, help="Target language is a mandatory option",
-                          type=self._validate_lang)
-    parser.add_argument(name='smeta', required=False, help="Source metadata (valid JSON)", type=self._validate_json, default={})
-    parser.add_argument(name='tmeta', required=False, help="Target metadata (valid JSON)", type=self._validate_json, default={})
-    parser.add_argument(name='limit', type=int, default=10,
-                          help="Limit output to this number of segments (for JSON output. For Moses, only one segment will be output")
-    parser.add_argument(name='duplicates_only', type=inputs.boolean, default=False,
-                        help="Duplicate segments only")
-
-    parser.add_argument(name='out', choices=['json', 'moses'], help="Output format", default='json')
-    parser.add_argument(name='strip_tags', type=inputs.boolean, default=False,
-                          help="Strip all XML tags from the query")
+    parser.add_argument(location='args', name='q', required=True, help="TM query string is a mandatory option")
+    parser.add_argument(location='args', name='slang', help="Source language is a desired option", type=self._validate_lang)
+    parser.add_argument(location='args', name='tlang', required=True, help="Target language is a mandatory option", type=self._validate_lang)
+    parser.add_argument(location='args', name='smeta', required=False, help="Source metadata (valid JSON)", type=self._validate_json, default={})
+    parser.add_argument(location='args', name='tmeta', required=False, help="Target metadata (valid JSON)", type=self._validate_json, default={})
+    parser.add_argument(location='args', name='limit', type=int, default=10, help="Limit output to this number of segments (for JSON output. For Moses, only one segment will be output")
+    parser.add_argument(location='args', name='duplicates_only', type=inputs.boolean, default=False, help="Duplicate segments only")
+    parser.add_argument(location='args', name='out', choices=['json', 'moses'], help="Output format", default='json')
+    parser.add_argument(location='args', name='strip_tags', type=inputs.boolean, default=False, help="Strip all XML tags from the query")
     min_match_default=65
-    parser.add_argument(name='min_match',
-                          type=int,
-                          default=min_match_default,
-                          help="Return only match above or equal to given threshold (0-100) Default is {}.".format(min_match_default))
-    parser.add_argument(name='operation_match',
-                        type=str,
-                        default='regex,tags', # split & posTag isn't default posTag,split
-                        help="Apply different operation to obtain the match. Default is all (All operation).")
-    parser.add_argument(name='concordance', type=inputs.boolean, default=False,
-                          help="Concordance search mode")
-    parser.add_argument(name='aut_trans', type=inputs.boolean, default=False, help="Apply machine translation if match score is less than a threshold")
-    parser.add_argument(name='tag', action='append', help="Prefer given tag(s). Penalize segments from other tags", type=str)
-    parser.add_argument(name='domain', action='append', help="DEPRECATED: use 'tag' instead", type=str)
+    parser.add_argument(location='args', name='min_match', type=int, default=min_match_default, help="Return only match above or equal to given threshold (0-100) Default is {}.".format(min_match_default))
+    # split & posTag isn't default posTag,split
+    parser.add_argument(location='args', name='operation_match', type=str, default='regex,tags', help="Apply different operation to obtain the match. Default is all (All operation).")
+    parser.add_argument(location='args', name='concordance', type=inputs.boolean, default=False, help="Concordance search mode")
+    parser.add_argument(location='args', name='aut_trans', type=inputs.boolean, default=False, help="Apply machine translation if match score is less than a threshold")
+    parser.add_argument(location='args', name='tag', action='append', help="Prefer given tag(s). Penalize segments from other tags", type=str)
+    parser.add_argument(location='args', name='domain', action='append', help="DEPRECATED: use 'tag' instead", type=str)
     return parser
 
   """
@@ -288,6 +276,7 @@ class TmResource(Resource):
    @apiParam {String} tag Translation unit tag.
    @apiParam {String} [file_name] File name (or source name)
   """
+  @import_tm_permission.require()
   def post(self):
     args = self._post_reqparse().parse_args()
 
@@ -297,7 +286,7 @@ class TmResource(Resource):
     # Check tag existence
     self._validate_tag_ids(tag_ids)
 
-    if current_identity.role != Users.ADMIN and not Tags.has_specified(tag_ids):
+    if current_identity.role != ADMIN and not Tags.has_specified(tag_ids):
       abort(403, message="Tags should include at least one private or public tag")
     # Check user scope
     if not UserScopeChecker.check((args.slang, args.tlang), tag_ids, is_update=True):
@@ -368,19 +357,14 @@ class TmResource(Resource):
     -X DELETE
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
     """
-  @admin_permission.require(http_exception=403)
+  @delete_tm_permission.require(http_exception=403)
   def delete(self):
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
-    task = self.delete_task.apply_async()
+    task = tm_delete_task.apply_async(self.request.id)
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='delete', filter=filters, slang=args.slang, tlang=args.tlang, duplicates_only=args.duplicates_only)
     return {"job_id": task.id, "message": "Job submitted successfully"}
-
-  @shared_task(bind=True)
-  def delete_task(self):
-    SparkTaskDispatcher().run(self.request.id, 'Delete')
-    return {'status': 'Task completed!'}
 
   ############### Helper methods ###################
   def _validate_lang(self, lang):
@@ -389,8 +373,7 @@ class TmResource(Resource):
     lang = lang.lower()
     try:
       TMUtils.validate_lang(lang)
-    except Exception as e:
-      print(e)
+    except Exception:
       abort(400, mesage="Unsupported language".format(lang))
     return lang
 
@@ -499,7 +482,7 @@ class TmResource(Resource):
 
 
 class TmBatchQueryResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
+  decorators = [PermissionChecker(view_tm_permission)]
 
   # Querying segment translation into the target language
   """
@@ -552,12 +535,12 @@ class TmBatchQueryResource(TmResource):
 
   def _get_reqparse(self):
     parser = super()._get_reqparse()
-    parser.replace_argument(name='q', required=True, action='append', help="TM query string is a mandatory option")
-    parser.add_argument(name="split_pattern", default=None)
+    parser.replace_argument(location='args', name='q', required=True, action='append', help="TM query string is a mandatory option")
+    parser.add_argument(location='args', name="split_pattern", default=None)
     return parser
 
 class TmImportResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
+  decorators = [PermissionChecker(import_tm_permission)]
 
   # Import
   """
@@ -584,7 +567,7 @@ class TmImportResource(TmResource):
     # Check tag existence
     tag_ids = args.tag
     self._validate_tag_ids(tag_ids)
-    if current_identity.role != Users.ADMIN and not Tags.has_specified(tag_ids):
+    if current_identity.role != ADMIN and not Tags.has_specified(tag_ids):
       abort(403, message="Tags should include at least one private or public tag")
 
     lang_pairs = self._parse_lang_pairs(args.lang_pair)
@@ -600,14 +583,9 @@ class TmImportResource(TmResource):
         abort(403, message="No valid user permission scope found for given language pair, tag and operation")
 
     # Setup a job using Celery & ES
-    task = self.import_task.apply_async()
+    task = tm_import_task.apply_async(self.request.id)
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='import', file=args.full_path, domain=tag_ids, lang_pairs=lang_pairs)
     return {"job_id": task.id, "message": "Job submitted successfully"}
-
-  @shared_task(bind=True)
-  def import_task(self):
-    SparkTaskDispatcher().run(self.request.id, 'Import')
-    return {'status': 'Task completed!'}
 
   def _parse_lang_pairs(self, lang_pairs):
     if not lang_pairs: return []
@@ -616,8 +594,8 @@ class TmImportResource(TmResource):
   def _put_reqparse(self):
     parser = RequestParser()
     parser.add_argument(name='file', required=True, type=FileStorage, location='files')
-    parser.add_argument(name='tag', required=True,  action='append', help="Translation memories tag is a mandatory option")
-    parser.add_argument(name='lang_pair', action='append', help="Language pair to parse from TMX. May supply multiple pairs \ "
+    parser.add_argument(location='form', name='tag', required=True,  action='append', help="Translation memories tag is a mandatory option")
+    parser.add_argument(location='form', name='lang_pair', action='append', help="Language pair to parse from TMX. May supply multiple pairs \ "
                                                "Each pair is a string of 2-letter language codes joined with underscore",
                         default=[],
 
@@ -637,7 +615,7 @@ class TmImportResource(TmResource):
     return args
 
 class TmExportResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
+  decorators = [PermissionChecker(export_tm_permission)]
 
   # Export
   """
@@ -666,7 +644,7 @@ class TmExportResource(TmResource):
     args.slang = args.slang.lower()
     args.tlang = args.tlang.lower()
 
-    if current_identity.role != Users.ADMIN and not Tags.has_specified(filters.get("domain", [])):
+    if current_identity.role != ADMIN and not Tags.has_specified(filters.get("domain", [])):
       abort(403, message="Tags should include at least one private or public tag")
 
     if not UserScopeChecker.check((args.slang, args.tlang), filters.get("domain"), is_export=True):
@@ -678,7 +656,7 @@ class TmExportResource(TmResource):
     if not self.db.has_langs(lang_pair):
       abort(403, mesage="Requested language pair doesn't exist. Try generating using pivot language")
 
-    task = self.export_task.apply_async()
+    task = tm_export_task.apply_async(self.request.id)
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='export', filter=filters, slang=args.slang, tlang=args.tlang, limit=args.limit, duplicates_only=args.duplicates_only)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
@@ -723,17 +701,12 @@ class TmExportResource(TmResource):
     # os.remove(tmpfile)
     # return response
 
-  @shared_task(bind=True)
-  def export_task(self):
-    SparkTaskDispatcher().run(self.request.id, 'Export')
-    return {'status': 'Task completed!'}
-
   def _get_reqparse(self):
     return self._common_reqparse()
 
 
 class TmExportFileResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
+  decorators = [PermissionChecker(export_tm_permission)]
 
   """
   @api {get} /tm/export/file/<export_id> Download exported file or list all available downloads
@@ -822,7 +795,7 @@ class TmGenerateResource(TmResource):
         abort(403, message="Failed to find pivot language for {}".format(langs))
 
     # Setup a job using Celery & ES
-    task = self.generate_task.apply_async()
+    task = tm_generate_task.apply_async(self.request.id)
     self.job_api.init_job(job_id=task.id,
                           username=current_identity.id,
                           type='generate',
@@ -831,11 +804,6 @@ class TmGenerateResource(TmResource):
                           plang=args.plang,
                           domain=args.tag)
     return {"job_id": task.id, "message": "Job submitted successfully"}
-
-  @shared_task(bind=True)
-  def generate_task(self):
-    SparkTaskDispatcher().run(self.request.id, 'Generate')
-    return {'status': 'Task completed!'}
 
   def _put_reqparse(self):
     parser = RequestParser()
@@ -877,7 +845,7 @@ class TmPosTagResource(TmResource):
     args = self._put_pos_reqparse()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
-    task = self.pos_tag_task.apply_async()
+    task = tm_pos_tag_task.apply_async(self.request.id)
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='pos_tag', filter=filters, slang=args.slang, tlang=args.tlang, universal=args.universal)
     return {"job_id": task.id, "message": "Job submitted successfully "}
 
@@ -892,12 +860,6 @@ class TmPosTagResource(TmResource):
     self._add_filter_args(parser)
     args = parser.parse_args()
     return args
-
-  @shared_task(bind=True)
-  def pos_tag_task(self):
-    SparkTaskDispatcher().run(self.request.id, 'PosTag')
-    return {'status': 'Task completed!'}
-
 
 """
  @api {post} /tm/maintain Perform various maintenance tasks on TM (POS tagging, cleaning, etc.)
@@ -921,14 +883,9 @@ class TmMaintainResource(TmResource):
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
-    task = self.maintain_task.apply_async()
+    task = tm_maintain_task.apply_async(self.request.id)
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='maintain', filter=filters, slang=args.slang, tlang=args.tlang)
     return {"job_id": task.id, "message": "Job submitted successfully "}
-
-  @shared_task(bind=True)
-  def maintain_task(self):
-    SparkTaskDispatcher().run(self.request.id, 'Maintain')
-    return {'status': 'Task completed!'}
 
 
 """
@@ -954,14 +911,9 @@ class TmCleanResource(TmResource):
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
-    task = self.clean_task.apply_async()
+    task = tm_clean_task.apply_async(self.request.id)
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='clean',  filter=filters, slang=args.slang, tlang=args.tlang)
     return {"job_id": task.id, "message": "Job submitted successfully "}
-
-  @shared_task(bind=True)
-  def clean_task(self):
-    SparkTaskDispatcher().run(self.request.id, 'Clean')
-    return {'status': 'Task completed!'}
 
 """
  @api {get} /tm/stats Return various statistics & allowed language pairs
@@ -975,10 +927,10 @@ class TmCleanResource(TmResource):
  @apiSuccess {Json} stats Various stats
 """
 class TmStatsResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
+  decorators = [PermissionChecker(admin_permission)]
 
   def get(self):
-    stats =  self.db.mstats()
+    stats = self.db.mstats()
     lps = dict()
     # Filter language pairs and domains accordin to valid user scopes
     filter_lp = self._allowed_lang_pairs(stats['lang_pairs'].keys())
@@ -1016,11 +968,13 @@ class TmStatsResource(TmResource):
         if lp_tag not in allowed_domains:
           del lp_stat["tag"][lp_tag]
 
+
     ##################
     # For regular user, just return language pair and tag stats
     if current_identity.role == 'user':
       stats = {'lang_pairs': stats['lang_pairs'],
                'tag': stats.get('tag',[])}
+
     return stats
 
   # Reverse language pair
@@ -1047,7 +1001,7 @@ class TmStatsResource(TmResource):
  @apiSuccess {Json} stats Various stats
 """
 class TmUsageStatsResource(TmResource):
-  decorators = [PermissionChecker(user_permission)]
+  decorators = [PermissionChecker(admin_permission)]
 
   def get(self):
     stats =  self.qlogger.stats()

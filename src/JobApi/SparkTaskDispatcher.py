@@ -71,7 +71,9 @@ class SparkTaskDispatcher:
     params = "--master {} {}/{}.py {} --py-files {}".format(master_path, task_path, pyscript, job_id, self.src_zip_file)
     logger.info("Dispatching Spark task: export PYSPARK_PYTHON={}; cd {}; {} {}".format(sys.executable, src_root_path, cmd, params))
     logger.info("ENV: {}".format(env))
-    p = Popen("{} {}".format(cmd, params).split(), stdout=PIPE, stderr=PIPE, env=env, cwd=src_root_path)
+
+    final_cmd = "{} {}".format(cmd, params).split()
+    p = Popen(final_cmd, stdout=PIPE, stderr=PIPE, env=env, cwd=src_root_path)
     for line in io.TextIOWrapper(p.stdout, encoding="utf-8"):
       logger.info(line)
     p.wait()
@@ -81,7 +83,7 @@ class SparkTaskDispatcher:
     else:
       status = 'succeded'
     logger.info("Spark status: {}, exit code: {}".format(status, exit_code))
-    
+
     self.job_api.set_status(job_id, status)
 
 if __name__ == "__main__":
