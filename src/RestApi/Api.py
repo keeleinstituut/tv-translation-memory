@@ -98,6 +98,10 @@ api.add_resource(JobsResource, api_prefix + '/jobs', api_prefix + '/jobs/<string
 api.add_resource(TagsResource, api_prefix + '/tags',
                                 api_prefix + '/tags/<uuid:tag_id>')
 
+@app.route('/healthz')
+def healthz():
+    return "OK"
+
 app.config['JWT_AUTH_URL_RULE'] = None
 app.config['JWT_AUTH_HEADER_PREFIX'] = 'Bearer'
 app.keycloak = Keycloak(
