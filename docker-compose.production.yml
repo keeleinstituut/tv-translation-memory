@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["sleep", "infinity"]
+#    command: ["sleep", "infinity"]
     environment:
       - SPARK_WORKER_COUNT=2
       - OPENSEARCH_HOST=opensearch-node
