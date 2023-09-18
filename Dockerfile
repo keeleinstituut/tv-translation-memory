@@ -143,6 +143,8 @@ WORKDIR $ELASTICTM
 #    --log-level INFO \
 #     RestApi.Api:app
 
+RUN sed -i 's/^\(\[supervisord\]\)$/\1\nnodaemon=true/' /etc/supervisor/supervisord.conf
+
 RUN <<EOF cat > /etc/supervisor/conf.d/supervisor.conf
 [program:gunicorn]
 process_name=%(program_name)s
