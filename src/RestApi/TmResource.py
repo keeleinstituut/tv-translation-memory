@@ -362,7 +362,7 @@ class TmResource(Resource):
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
-    task = tm_delete_task.apply_async(self.request.id)
+    task = tm_delete_task.apply_async()
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='delete', filter=filters, slang=args.slang, tlang=args.tlang, duplicates_only=args.duplicates_only)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
@@ -583,7 +583,7 @@ class TmImportResource(TmResource):
         abort(403, message="No valid user permission scope found for given language pair, tag and operation")
 
     # Setup a job using Celery & ES
-    task = tm_import_task.apply_async(self.request.id)
+    task = tm_import_task.apply_async()
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='import', file=args.full_path, domain=tag_ids, lang_pairs=lang_pairs)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
@@ -656,7 +656,7 @@ class TmExportResource(TmResource):
     if not self.db.has_langs(lang_pair):
       abort(403, mesage="Requested language pair doesn't exist. Try generating using pivot language")
 
-    task = tm_export_task.apply_async(self.request.id)
+    task = tm_export_task.apply_async()
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='export', filter=filters, slang=args.slang, tlang=args.tlang, limit=args.limit, duplicates_only=args.duplicates_only)
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
@@ -795,7 +795,7 @@ class TmGenerateResource(TmResource):
         abort(403, message="Failed to find pivot language for {}".format(langs))
 
     # Setup a job using Celery & ES
-    task = tm_generate_task.apply_async(self.request.id)
+    task = tm_generate_task.apply_async()
     self.job_api.init_job(job_id=task.id,
                           username=current_identity.id,
                           type='generate',
@@ -845,7 +845,7 @@ class TmPosTagResource(TmResource):
     args = self._put_pos_reqparse()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
-    task = tm_pos_tag_task.apply_async(self.request.id)
+    task = tm_pos_tag_task.apply_async()
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='pos_tag', filter=filters, slang=args.slang, tlang=args.tlang, universal=args.universal)
     return {"job_id": task.id, "message": "Job submitted successfully "}
 
@@ -883,7 +883,7 @@ class TmMaintainResource(TmResource):
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
-    task = tm_maintain_task.apply_async(self.request.id)
+    task = tm_maintain_task.apply_async()
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='maintain', filter=filters, slang=args.slang, tlang=args.tlang)
     return {"job_id": task.id, "message": "Job submitted successfully "}
 
@@ -911,7 +911,7 @@ class TmCleanResource(TmResource):
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
-    task = tm_clean_task.apply_async(self.request.id)
+    task = tm_clean_task.apply_async()
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='clean',  filter=filters, slang=args.slang, tlang=args.tlang)
     return {"job_id": task.id, "message": "Job submitted successfully "}
 
