@@ -22,6 +22,7 @@
 # under the License.
 #
 
+import re
 from flask_restful import Resource, abort
 from flask_restful.reqparse import RequestParser
 
@@ -89,7 +90,7 @@ class TagsResource(Resource):
   """
   # @admin_permission.require(http_exception=403)
   def post(self, tag_id=None):
-    args = self._reqparse()
+    args = self._reqparse(tag_id)
     tag = None
 
     try:
@@ -111,11 +112,24 @@ class TagsResource(Resource):
       "tag": tag.to_dict()
     }
 
-  def _reqparse(self):
+  def _reqparse(self, tag_id):
       parser = RequestParser(bundle_errors=True)
-      parser.add_argument(name='name', help="Tag name")
-      parser.add_argument(name='type', help="Tag type")
-      return parser.parse_args()
+      parser.add_argument(name='name', help="Tag's name")
+      parser.add_argument(name='type', help="Tag's type")
+      parser.add_argument(name='comment', help="Tag's comment")
+      parser.add_argument(name='tv_domain', help="Tag's Tõlkevärav specific domain")
+      parser.add_argument(name='tv_tags', action='append', help="Tag's Tõlkevärav specific tags")
+
+      if not tag_id:
+        parser.add_argument(name='lang_pair',
+                            help="Language pair to parse from TMX. \ "
+                                 "Pair is a string of 2-letter language codes joined with underscore")
+      args = parser.parse_args()
+
+      if 'lang_pair' in args and not re.match('^[a-zA-Z]{2}_[a-zA-Z]{2}$', args.lang_pair):
+        abort(400, mesage="Language pair format is incorrect: {} The correct format example : en_es".format(args.lang_pair))
+
+      return args
 
 
   """

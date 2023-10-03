@@ -26,6 +26,7 @@ import logging
 import uuid
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import sql
 from Config.Config import G_CONFIG
 
 POSTGRESQL_HOST = G_CONFIG.config['postgresql']['host']
@@ -86,14 +87,23 @@ class CRUD:
 
 class Tags(db.Model):
    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
+   created_at = db.Column(db.DateTime, default=sql.func.now())
    institution_id = db.Column(db.Uuid)
    name = db.Column(db.Text)
    type = db.Column(db.Text)
+   comment = db.Column(db.Text)
+   lang_pair = db.Column(db.Text)
+   tv_domain = db.Column(db.Text)
+   tv_tags = db.Column(db.ARRAY(db.String))
 
-   def __init__(self, institution_id, name, type):
+   def __init__(self, institution_id, name, type, lang_pair, comment, tv_domain, tv_tags):
      self.name = name
      self.type = type
+     self.lang_pair = lang_pair
      self.institution_id = institution_id
+     self.comment = comment
+     self.tv_domain = tv_domain
+     self.tv_tags = tv_tags
 
    def update(self, **kwargs):
      for key,value in kwargs.items():

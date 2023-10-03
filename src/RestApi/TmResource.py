@@ -570,7 +570,13 @@ class TmImportResource(TmResource):
     if current_identity.role != ADMIN and not Tags.has_specified(tag_ids):
       abort(403, message="Tags should include at least one private or public tag")
 
-    lang_pairs = self._parse_lang_pairs(args.lang_pair)
+    tag = Tags.query.get(tag_ids[0])
+
+    if tag.lang_pair:
+      lang_pairs = self._parse_lang_pairs([tag.lang_pair])
+    else:
+      lang_pairs = self._parse_lang_pairs(args.lang_pair)
+
     if not lang_pairs:
       lang_pairs = TMXParser(args.full_path).language_pairs()
 
@@ -609,8 +615,8 @@ class TmImportResource(TmResource):
     args.file.save(args.full_path)
     # Validate language pairs
     for lp in args.lang_pair:
-      if not re.match('[a-zA-Z]{2}_[a-zA-Z]{2}', lp):
-        abort(400, mesage="Language pair format is incorrect: {} The correct format example : en_es".format(lp))
+      if not re.match('^[a-zA-Z]{2}_[a-zA-Z]{2}$', lp):
+          abort(400, mesage="Language pair format is incorrect: {} The correct format example : en_es".format(lp))
 
     return args
 
@@ -927,7 +933,7 @@ class TmCleanResource(TmResource):
  @apiSuccess {Json} stats Various stats
 """
 class TmStatsResource(TmResource):
-  decorators = [PermissionChecker(admin_permission)]
+  decorators = [PermissionChecker(view_tm_permission)]
 
   def get(self):
     stats = self.db.mstats()
@@ -941,13 +947,14 @@ class TmStatsResource(TmResource):
       if not stat: stat = stats['lang_pairs'][self._reverse_lp(lp)]
       # Filter allowed domains
       tags = self._tag_ids2dict(stat.get('domain', dict()).keys())
-      allowed_domains += [t["id"] for t in UserScopeChecker.filter_domains(tags, lp, key_fn=lambda t: t["id"])]
+      allowed_domains += [str(t["id"]) for t in UserScopeChecker.filter_domains(tags, lp, key_fn=lambda t: t["id"])]
       allowed_domains = list(set(allowed_domains)) # deduplicate
       all_domains = list(stat['domain'].keys())
       for d in all_domains:
         if d not in allowed_domains:
           del stat['domain'][d]
       lps[lp] = stat
+
     stats['lang_pairs'] = lps
     ##### Rename "domain(s)" to "tag(s)"
     if 'domain' in stats:
@@ -971,11 +978,13 @@ class TmStatsResource(TmResource):
 
     ##################
     # For regular user, just return language pair and tag stats
-    if current_identity.role == 'user':
-      stats = {'lang_pairs': stats['lang_pairs'],
-               'tag': stats.get('tag',[])}
+    if current_identity.role == 'admin':
+      return stats
 
-    return stats
+    return {
+      'lang_pairs': stats.get('lang_pairs'),
+      'tag': stats.get('tag', []),
+    }
 
   # Reverse language pair
   def _reverse_lp(self, lp):
