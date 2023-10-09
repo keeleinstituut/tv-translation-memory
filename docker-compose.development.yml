@@ -6,7 +6,6 @@ services:
       context: .
       dockerfile: Dockerfile.development
     environment:
-#      - SPARK_WORKER_COUNT=2
       - SPARK_WORKER_COUNT=8
       - OPENSEARCH_HOST=opensearch-node
       - OPENSEARCH_PORT=9200
@@ -17,8 +16,8 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-#      - KEYCLOAK_URL=https://sso.dev.tolkevarav.eki.ee
-      - KEYCLOAK_URL=http://host.docker.internal:8180
+      - KEYCLOAK_URL=https://sso.dev.tolkevarav.eki.ee
+#      - KEYCLOAK_URL=http://host.docker.internal:8180
       - KEYCLOAK_REALM=tolkevarav-dev
     ports:
       - 5000:5000

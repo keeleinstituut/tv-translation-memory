@@ -36,41 +36,41 @@ WORKDIR $ELASTICTM
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-      libboost-all-dev=1.74.0.3 \
-      libtercpp-dev=0.6.2+svn46-1.1+b1 \
-      ruby=1:2.7+2 \
-      ruby-dev=1:2.7+2 \
-      zip=3.0-12 \
+      libboost-all-dev \
+      libtercpp-dev \
+      ruby \
+      ruby-dev \
+      zip \
       # LEGACY: The following packages MIGHT not be needed.
       # Either (a) they’re installed in the base image or (b) the application does not explicitly use them.
-      apt-transport-https=2.2.4 \
-      apt-utils=2.2.4 \
-      build-essential=12.9 \
-      curl=7.74.0-1.3+deb11u7 \
-      default-jdk=2:1.11-72 \
-      default-jre=2:1.11-72 \
-      gfortran=4:10.2.1-1 \
-      git=1:2.30.2-1+deb11u2 \
-      iputils-ping=3:20210202-1 \
-      libatlas-base-dev=3.10.3-10 \
-      libblas-dev=3.9.0-3 \
-      libcurl4-openssl-dev=7.74.0-1.3+deb11u7 \
-      liblapack-dev=3.9.0-3 \
-      libssl-dev=1.1.1n-0+deb11u5 \
-      libxml2-dev=2.9.10+dfsg-6.7+deb11u4 \
-      libxslt1-dev=1.1.34-4+deb11u1 \
-      logrotate=3.18.0-2+deb11u1 \
-      nano=5.4-2+deb11u2 \
-      python3-bs4=4.9.3-1 \
-      python3-matplotlib=3.3.4-1 \
-      python3-nose=1.3.7-7 \
-      python3-numpy=1:1.19.5-1 \
-      python3-pandas=1.1.5+dfsg-2 \
-      python3-pip=20.3.4-4+deb11u1 \
-      python3-scipy=1.6.0-2 \
-      python3-sympy=1.7.1-3 \
-      software-properties-common=0.96.20.2-2.1 \
-      wget=1.21-1+deb11u1 \
+      apt-transport-https \
+      apt-utils \
+      build-essential \
+      curl \
+      default-jdk \
+      default-jre \
+      gfortran \
+      git \
+      iputils-ping \
+      libatlas-base-dev \
+      libblas-dev \
+      libcurl4-openssl-dev \
+      liblapack-dev \
+      libssl-dev \
+      libxml2-dev \
+      libxslt1-dev \
+      logrotate \
+      nano \
+      python3-bs4 \
+      python3-matplotlib \
+      python3-nose \
+      python3-numpy \
+      python3-pandas \
+      python3-pip \
+      python3-scipy \
+      python3-sympy \
+      software-properties-common \
+      wget \
       supervisor
 
 # LEGACY: The rubygem seems never used -- instead, source code from tools/pragmatic_segmenter-master is executed.
@@ -98,7 +98,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 WORKDIR /tmp/Mykytea-python
 RUN if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
         then \
-            apt-get install -y --no-install-recommends swig=4.0.2-1 && \
+            apt-get install -y --no-install-recommends swig && \
             git clone https://github.com/chezou/Mykytea-python.git . && \
             git checkout 3a2818e && \
             # TODO: Verify checksum before continuing?
