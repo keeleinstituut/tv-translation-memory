@@ -50,6 +50,9 @@ full_read_only_permission = Permission(RoleNeed(SSO_REALM_FULL_READ_ONLY))
 # user_permission = Permission(RoleNeed(TOLKEVARAV_PHYSICAL_USER)).union(admin_permission)
 
 create_tag_permission = Permission(RoleNeed('CREATE_TM'))
+view_tag_permission = Permission(RoleNeed('VIEW_TM'))
+delete_tag_permission = Permission(RoleNeed('DELETE_TM'))
+
 edit_tag_permission = Permission(RoleNeed('EDIT_TM_METADATA'))
 import_tm_permission = Permission(RoleNeed('IMPORT_TM'))
 export_tm_permission = Permission(RoleNeed('EXPORT_TM'))
@@ -166,7 +169,13 @@ class UserScopeChecker:
     if (current_identity.can(Permission(RoleNeed(SSO_REALM_FULL_READ_ONLY)))):
       return domains
 
-    return [d for d in domains if d["type"] == "public" or allow_unspecified and d["type"] == "unspecified" or str(d['institution_id']) == current_identity.institution_id]  # return only public and unspecified tags
+    def get(obj, key):
+      if isinstance(obj, dict):
+        return obj[key]
+      else:
+        return getattr(obj, key)
+
+    return [d for d in domains if get(d, 'type') == "public" or allow_unspecified and get(d, 'type') == "unspecified" or str(get(d, 'institution_id')) == current_identity.institution_id]  # return only public and unspecified tags
 
 
   @staticmethod
@@ -223,7 +232,7 @@ class UserScopeChecker:
     if not patterns: return True # any value is matching null pattern
     pattern_list = patterns.split(',')
     for p in pattern_list:
-      logging.info("Checking domain(tag): {} against pattern: {}".format(value,p)) 
+      logging.info("Checking domain(tag): {} against pattern: {}".format(value,p))
       if fnmatch.fnmatch(value, p):
         return True
     return False

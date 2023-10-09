@@ -29,7 +29,7 @@ from flask_restful.reqparse import RequestParser
 from lib.flask_jwt import current_identity, jwt_required
 
 from RestApi.Models import Tags, CRUD
-from Auth import admin_permission, PermissionChecker, UserScopeChecker
+from Auth import admin_permission, PermissionChecker, UserScopeChecker, view_tag_permission, create_tag_permission, delete_tag_permission
 from TMPreprocessor.TMRegExpPreprocessor import TMRegExpPreprocessor
 
 class TagsResource(Resource):
@@ -51,7 +51,10 @@ class TagsResource(Resource):
   @apiError {String} 403 Insufficient permissions
   
   """
+  @view_tag_permission.require(http_exception=403)
   def get(self, tag_id=None):
+    args = self._get_reqparse()
+
     tags = []
     if tag_id:
       tag = Tags.query.get(tag_id)
@@ -61,17 +64,57 @@ class TagsResource(Resource):
         abort(404, message="Tag {} doesn't exist".format(tag_id))
     else:
         tags = [tag.to_dict() for tag in Tags.query.all()]
+
     # Filter scopes according to permissions
     tags = UserScopeChecker.filter_domains(tags, key_fn=lambda t: t["id"])
+
+    name_filter = args.get('name')
+    if name_filter:
+      tags = filter(lambda t: str(name_filter).lower() in str(t['name']).lower(), tags)
+
+    type_filter = args.get('type')
+    if type_filter:
+      tags = filter(lambda t: t['type'] in type_filter, tags)
+
+    tv_domain_filter = args.get('tv_domain')
+    if tv_domain_filter:
+      tags = filter(lambda t: t['tv_domain'] in tv_domain_filter, tags)
+
+    tv_tags_filter = args.get('tv_tags')
+    if tv_tags_filter:
+      tags = filter(lambda t: set(tv_tags_filter) & set(t['tv_tags']), tags)
+
+    lang_pair_filter = args.get('lang_pair')
+    if lang_pair_filter:
+      tags = filter(lambda t: t['lang_pair'] in lang_pair_filter, tags)
+
     if tag_id:
       if not tags:
         abort(404, message="Tag {} doesn't exist".format(tag_id))
       return tags[0]
     # List of all tags
     return {
-      'tags': tags
+      'tags': list(tags)
     }
 
+  def _get_reqparse(self):
+    parser = RequestParser(bundle_errors=True)
+    parser.add_argument(location='args', name='name', help="Tag's name")
+    parser.add_argument(location='args', name='type', action='append', help="Tag's type")
+    parser.add_argument(location='args', name='tv_domain', action='append', help="Tag's Tõlkevärav specific domain")
+    parser.add_argument(location='args', name='tv_tags', action='append', help="Tag's Tõlkevärav specific tags")
+    parser.add_argument(location='args', name='lang_pair', action='append',
+                        help="Language pair to parse from TMX. \ "
+                             "Pair is a string of 2-letter language codes joined with underscore")
+    args = parser.parse_args()
+
+    lang_pairs = args.get('lang_pair')
+    if lang_pairs is not None:
+      for lang_pair in lang_pairs:
+        if not re.match('^[a-zA-Z]{2}_[a-zA-Z]{2}$', lang_pair):
+          abort(400, mesage="Language pair format is incorrect: {} The correct format example : en_es".format(lang_pair))
+
+    return args
 
   """
   @api {post} /tags/:id Update tag
@@ -88,7 +131,7 @@ class TagsResource(Resource):
   @apiError {String} 403 Insufficient permissions
 
   """
-  # @admin_permission.require(http_exception=403)
+  @create_tag_permission.require(http_exception=403)
   def post(self, tag_id=None):
     args = self._reqparse(tag_id)
     tag = None
@@ -146,9 +189,10 @@ class TagsResource(Resource):
   @apiError {String} 404 Tag doesn't exist
 
   """
-  @admin_permission.require(http_exception=403)
+  @delete_tag_permission.require(http_exception=403)
   def delete(self, tag_id):
     tag = Tags.query.get(tag_id)
+
     tags = UserScopeChecker.filter_domains([tag], key_fn=lambda t: t["id"])
     tag = tags[0] if tags else None
 
