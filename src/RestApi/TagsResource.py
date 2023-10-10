@@ -82,7 +82,7 @@ class TagsResource(Resource):
 
     tv_tags_filter = args.get('tv_tags')
     if tv_tags_filter:
-      tags = filter(lambda t: set(tv_tags_filter) & set(t['tv_tags']), tags)
+      tags = filter(lambda t: set(tv_tags_filter) & set(t['tv_tags'] or []), tags)
 
     lang_pair_filter = args.get('lang_pair')
     if lang_pair_filter:
@@ -101,8 +101,8 @@ class TagsResource(Resource):
     parser = RequestParser(bundle_errors=True)
     parser.add_argument(location='args', name='name', help="Tag's name")
     parser.add_argument(location='args', name='type', action='append', help="Tag's type")
-    parser.add_argument(location='args', name='tv_domain', action='append', help="Tag's Tõlkevärav specific domain")
-    parser.add_argument(location='args', name='tv_tags', action='append', help="Tag's Tõlkevärav specific tags")
+    parser.add_argument(location='args', name='tv_domain', action='append', help="Tõlkevärav specific domain")
+    parser.add_argument(location='args', name='tv_tags', action='append', help="Tõlkevärav specific tags")
     parser.add_argument(location='args', name='lang_pair', action='append',
                         help="Language pair to parse from TMX. \ "
                              "Pair is a string of 2-letter language codes joined with underscore")
