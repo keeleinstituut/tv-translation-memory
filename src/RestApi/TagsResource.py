@@ -72,6 +72,10 @@ class TagsResource(Resource):
     if name_filter:
       tags = filter(lambda t: str(name_filter).lower() in str(t['name']).lower(), tags)
 
+    id_filter = args.get('id')
+    if id_filter:
+      tags = filter(lambda t: t['id'] in id_filter, tags)
+
     type_filter = args.get('type')
     if type_filter:
       tags = filter(lambda t: t['type'] in type_filter, tags)
@@ -100,6 +104,7 @@ class TagsResource(Resource):
   def _get_reqparse(self):
     parser = RequestParser(bundle_errors=True)
     parser.add_argument(location='args', name='name', help="Tag's name")
+    parser.add_argument(location='args', name='id', action='append', help="Tag's id")
     parser.add_argument(location='args', name='type', action='append', help="Tag's type")
     parser.add_argument(location='args', name='tv_domain', action='append', help="Tõlkevärav specific domain")
     parser.add_argument(location='args', name='tv_tags', action='append', help="Tõlkevärav specific tags")
