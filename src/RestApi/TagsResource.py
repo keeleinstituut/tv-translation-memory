@@ -73,7 +73,6 @@ class TagsResource(Resource):
       tags = filter(lambda t: str(name_filter).lower() in str(t['name']).lower(), tags)
 
     id_filter = args.get('id')
-    print(id_filter)
     if id_filter:
       tags = filter(lambda t: str(t['id']) in id_filter, tags)
 
