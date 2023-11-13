@@ -41,3 +41,11 @@ services:
       DISABLE_SECURITY_DASHBOARDS_PLUGIN: true
     depends_on:
       - opensearch-node
+
+  rabbitmq:
+    image: rabbitmq:latest
+    ports:
+      - ${RABBITMQ_PORT}:5672
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}

@@ -155,6 +155,9 @@ class TagsResource(Resource):
         CRUD.add(tag)
     except Exception as e:
       abort(500, message=str(e))
+
+    # audit log: create translation memory
+
     return {
       "message": "Tag {} added/updated successfully".format(tag.id),
       "tag": tag.to_dict()
@@ -208,6 +211,9 @@ class TagsResource(Resource):
         abort(500, message=str(e))
     else:
       abort(404, message="Tag {} doesn't exist".format(tag_id))
+
+    # audit log: remove translation memory
+
     return {
       "message": "Tag {} deleted successfully".format(tag_id),
       "tag": tag.to_dict()

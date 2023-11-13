@@ -306,6 +306,9 @@ class TmResource(Resource):
                          'tm_change_date': now_str,
                          'username': current_identity.id })
     self.db.add_segments([segment]) #add_segment(segment) --> Change this line, because the function add_segment replace tag in TM
+
+    # audit log: modify translation memory?
+
     return  {'message': 'Translation unit was added successfully'}
 
 
@@ -364,6 +367,9 @@ class TmResource(Resource):
     # Setup a job using Celery & ES
     task = tm_delete_task.apply_async()
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='delete', filter=filters, slang=args.slang, tlang=args.tlang, duplicates_only=args.duplicates_only)
+
+    # audit log: attempt of modifying translation memory?
+
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
   ############### Helper methods ###################
@@ -591,6 +597,9 @@ class TmImportResource(TmResource):
     # Setup a job using Celery & ES
     task = tm_import_task.apply_async()
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='import', file=args.full_path, domain=tag_ids, lang_pairs=lang_pairs)
+
+    # audit log: attempt of importing translation memory?
+
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
   def _parse_lang_pairs(self, lang_pairs):
@@ -664,6 +673,9 @@ class TmExportResource(TmResource):
 
     task = tm_export_task.apply_async()
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='export', filter=filters, slang=args.slang, tlang=args.tlang, limit=args.limit, duplicates_only=args.duplicates_only)
+
+    # audit log: attempt of exporting translation memory?
+
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
     #
@@ -738,6 +750,9 @@ class TmExportFileResource(TmResource):
       file_path = os.path.join(files[0]["filepath"], files[0]["filename"])
       response = Response(open(file_path, 'rb'), mimetype='application/octet-stream')
       response.headers['Content-Disposition'] = 'attachment; filename={}'.format(file_path)
+
+      # audit log: export translation memory tmx
+
       return response
     # Else, return list of available export files
     files = export.list()

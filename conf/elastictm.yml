@@ -29,6 +29,16 @@ keycloak:
   url: ${KEYCLOAK_URL}
   realm: ${KEYCLOAK_REALM}
 
+rabbitmq:
+  host: ${RABBITMQ_HOST}
+  port: ${RABBITMQ_PORT}
+  user: ${RABBITMQ_USER}
+  password: ${RABBITMQ_PASSWORD}
+
+audit_logs:
+  exchange: ${AUDIT_LOG_EVENTS_EXCHANGE}
+  trace_id_http_header: ${AUDIT_LOG_TRACE_ID_HTTP_HEADER}
+
 query:
     #Penalize match if segment doesn't belong to requested domain or it is a dirty segment
     p_domain: 5
