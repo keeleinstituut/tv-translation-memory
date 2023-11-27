@@ -193,7 +193,7 @@ class TmResource(Resource):
           elif not UserScopeChecker.check((args.slang, args.tlang), segment.domain):
             logging.debug("Filtered out segment (out of user scope): {}".format(segment.to_dict_short()))
             continue
-          filtered_tags = [t["id"] for t in UserScopeChecker.filter_domains(self._tag_ids2dict(segment.domain), key_fn=lambda t:t["id"], allow_unspecified=False)]
+          filtered_tags = [str(t["id"]) for t in UserScopeChecker.filter_domains(self._tag_ids2dict(segment.domain), key_fn=lambda t:t["id"], allow_unspecified=False)]
           if not filtered_tags or (tag_ids and not set(tag_ids).issubset(set(filtered_tags))):
             logging.debug("Filtered out segment from other domains".format(segment.to_dict_short()))
             continue
