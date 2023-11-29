@@ -98,6 +98,7 @@ class TMMapES(TMMap):
 
   def scan(self, langs, filter = None):
     query,swap = self._create_query(langs, filter)
+
     for hit in query.scan():
       if swap: hit = self._swap(hit)
       # Check if a source/target docs match the pattern(s) if given
@@ -317,7 +318,7 @@ class TMMapES(TMMap):
   def _create_search(self, source_id, source_lang, target_lang):
     m_index,swap = self._get_index(source_lang, target_lang)
     if not m_index: return None,None
-    qfield = "source_id.keyword" if not swap else "target_id"
+    qfield = "source_id.keyword" if not swap else "target_id.keyword"
 
     search = self.es.search(index=m_index)
     search.query = Q('term', **{qfield: source_id})

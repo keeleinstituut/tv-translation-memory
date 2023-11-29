@@ -35,6 +35,11 @@ class TMDbQuery:
   # These attributes contain list of strings (ovelaps with str_attrs)
   list_attrs = ['file_name', 'organization', 'domain', 'industry', 'language', 'type']
 
+  search_mapping = {
+    'domain': 'domain.keyword',
+    'file_name': 'file_name.keyword',
+  }
+  reverse_search_mapping = dict(zip(search_mapping.values(), search_mapping.keys()))
 
   #Monolingual filter
   monoling_num_attrs = ['token_cnt']
@@ -135,17 +140,25 @@ class TMDbQuery:
       # Build string-field filters
       for attr in self.monoling_str_attrs:
         if attr in each_f:
-          f = f.filter('match', **{attr : each_f[attr]})
+          f = f.filter('match', **{self.to_search_attr(attr) : each_f[attr]})
       # TODO: figure out the difference to filter by 'terms' and 'match'
       for attr in self.str_attrs:
         if attr in each_f:
-          f = f.filter('terms', **{attr : each_f[attr]})
+          f = f.filter('terms', **{self.to_search_attr(attr) : each_f[attr]})
       # Build date-field filters
       for attr in self.date_attrs + self.num_attrs + self.monoling_num_attrs:
         a = each_f.get(attr)
-        if a: f = f.filter('range', **{attr : each_f[attr]})
+        if a: f = f.filter('range', **{self.to_search_attr(attr) : each_f[attr]})
       logging.info("ES query: {}".format(f.to_dict()))
       self.search.append(f)
+
+  @staticmethod
+  def to_search_attr(attr):
+    return TMDbQuery.search_mapping.get(attr, attr)
+
+  @staticmethod
+  def from_search_attr(attr):
+    return TMDbQuery.reverse_search_mapping.get(attr, attr)
 
 
 if __name__ == '__main__':
