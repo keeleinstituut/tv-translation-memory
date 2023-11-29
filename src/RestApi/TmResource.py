@@ -733,15 +733,28 @@ class TmExportFileResource(TmResource):
     # If specific ID was requested -> download it
     if export_id:
       files = export.list(export_id)
-      if not len(files): return []
+      if not len(files): abort(404, message='Export not ready or wrong ID')
       if len(files) > 1: logging.warning("Export downloading found more than 1 file at {}, picking only the first".format(export_id))
-      file_path = os.path.join(files[0]["filepath"], files[0]["filename"])
-      response = Response(open(file_path, 'rb'), mimetype='application/octet-stream')
-      response.headers['Content-Disposition'] = 'attachment; filename={}'.format(file_path)
+
+      file_directory = files[0]["filepath"]
+      file_name = files[0]["filename"]
+      file_path = os.path.join(file_directory, file_name)
+
+      response = Response(open(file_path, 'rb'), mimetype='application/zip')
+      response.headers['Content-Disposition'] = 'attachment; filename={}'.format(file_name)
       return response
     # Else, return list of available export files
     files = export.list()
-    return {"files" : files}
+
+    def map_result_item(file):
+      return {
+        'id': file['id'],
+        'filename': file['filename'],
+        'export_time': file['export_time'],
+        'size': file['size'],
+      }
+
+    return {"files": list(map(map_result_item, files))}
 
 
   """

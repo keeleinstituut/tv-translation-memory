@@ -41,6 +41,7 @@ import babel.numbers, babel.dates
 from TMDbApi.TMTranslationUnit import TMTranslationUnit
 from TMDbApi import TMMap
 from TMDbApi.TMMonoLing import TMMonoLing
+from TMDbApi.TMDbQuery import TMDbQuery
 from TMPreprocessor.Xml.XmlUtils import XmlUtils
 from TMMatching.TMMatching import TMMatching
 from TMMatching.TMUtilsMatching import TMUtilsMatching
@@ -286,7 +287,7 @@ class TMDbApi:
 
   # Return list of file names for given language pair and filter
   def file_names(self, langs, filter=None):
-    return [f[0] for f in self.seg_map.get_aggr_values('file_name', langs, filter)]
+    return [f[0] for f in self.seg_map.get_aggr_values(TMDbQuery.to_search_attr('file_name'), langs, filter)]
 
   # Generate new language pair by using pivot language, e.g.
   # (en, es) and (en, fr) will produce (es, fr) pair pivoted by en
@@ -329,13 +330,8 @@ class TMDbApi:
     return stats
 
   def mstats(self):
-    keymapping = {
-      'domain.keyword': 'domain',
-      'file_name.keyword': 'file_name',
-
-    }
     lang_pairs_raw = self.seg_map.mcount_buckets(['file_name.keyword', 'domain.keyword'])
-    lang_pairs = {lang_pair: {keymapping.get(key, key): value for key, value in pair_value.items()} for lang_pair, pair_value in lang_pairs_raw.items()}
+    lang_pairs = {lang_pair: {TMDbQuery.from_search_attr(key): value for key, value in pair_value.items()} for lang_pair, pair_value in lang_pairs_raw.items()}
 
     stats = dict()
     stats['lang_pairs'] = lang_pairs
@@ -343,7 +339,7 @@ class TMDbApi:
     for lp,bucket_dict in stats['lang_pairs'].items():
       for bucket_name,bucket_value_dict in bucket_dict.items():
         for bucket_value,count in bucket_value_dict.items():
-          mapped_bucket_name = keymapping.get(bucket_name, bucket_name)
+          mapped_bucket_name = TMDbQuery.from_search_attr(bucket_name)
           d = stats.setdefault(mapped_bucket_name, dict())
           d.setdefault(bucket_value, 0)
           d[bucket_value] += count
