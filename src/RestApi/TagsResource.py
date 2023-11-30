@@ -174,8 +174,12 @@ class TagsResource(Resource):
                                  "Pair is a string of 2-letter language codes joined with underscore")
       args = parser.parse_args()
 
+      name_length_limit = 150
+      if len(args.name) > name_length_limit:
+        abort(400, message="Name can't be longer than {} characters".format(name_length_limit))
+
       if 'lang_pair' in args and not re.match('^[a-zA-Z]{2}_[a-zA-Z]{2}$', args.lang_pair):
-        abort(400, mesage="Language pair format is incorrect: {} The correct format example : en_es".format(args.lang_pair))
+        abort(400, message="Language pair format is incorrect: {} The correct format example : en_es".format(args.lang_pair))
 
       return args
 
