@@ -51,6 +51,7 @@ from RestApi.Keycloak import Keycloak
 app.config['SECRET_KEY'] = 'super-secret'
 app.config['VERSION'] = 1
 app.config['PROPAGATE_EXCEPTIONS'] = True
+app.config['FILEUPLOAD_IMPORT_EXTENSIONS'] = ['.tmx', '.zip']
 
 # Setup logging
 # handler = G_CONFIG.config_logging()
