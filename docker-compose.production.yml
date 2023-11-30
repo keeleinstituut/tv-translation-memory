@@ -16,9 +16,10 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - KEYCLOAK_URL=https://sso.dev.tolkevarav.eki.ee
+#      - KEYCLOAK_URL=https://sso.dev.tolkevarav.eki.ee
+      - KEYCLOAK_URL=http://host.docker.internal:8180
       - KEYCLOAK_REALM=tolkevarav-dev
     ports:
-      - 5000:80
+      - 5000:8000
 #    volumes:
 #      - ./src:/opt/elastictm/src
