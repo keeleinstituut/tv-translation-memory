@@ -141,20 +141,21 @@ class TagsResource(Resource):
     args = self._reqparse(tag_id)
     tag = None
 
-    try:
-      if tag_id:
-        tag = Tags.query.get(tag_id)
-        if not tag:
-          abort(404, message="Tag {} doesn't exist".format(tag_id))
-        tag.update(**args)
-        CRUD.update()
-      else:
-        tag = Tags(
-          institution_id=current_identity.institution_id,
-          **args)
-        CRUD.add(tag)
-    except Exception as e:
-      abort(500, message=str(e))
+    if tag_id:
+      tag = Tags.query.get(tag_id)
+      tags = UserScopeChecker.filter_domains([tag], key_fn=lambda t: t["id"])
+      tag = tags[0] if tags else None
+
+      if not tag:
+        abort(404, message="Tag {} doesn't exist".format(tag_id))
+
+      tag.update(**args)
+      CRUD.update()
+    else:
+      tag = Tags(
+        institution_id=current_identity.institution_id,
+        **args)
+      CRUD.add(tag)
     return {
       "message": "Tag {} added/updated successfully".format(tag.id),
       "tag": tag.to_dict()

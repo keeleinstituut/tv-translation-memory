@@ -284,6 +284,7 @@ class TmResource(Resource):
     tag_ids = args.tag if args.tag else args.domain # backward compatibility fallback
     if not tag_ids:
       abort(403, message="Tag is required option")
+
     # Check tag existence
     self._validate_tag_ids(tag_ids)
 
@@ -438,6 +439,9 @@ class TmResource(Resource):
     if not tag_ids: return True
     for tag_id in tag_ids:
       tag = Tags.query.get(tag_id)
+      tags = UserScopeChecker.filter_domains([tag], key_fn=lambda t: t["id"])
+      tag = tags[0] if tags else None
+
       if not tag:
         if abort_if_not_exists:
           abort(400, mesage="Tag {} doesn't exist. You should add it first by using POST /tags/<tag>".format(tag_id))
@@ -563,6 +567,7 @@ class TmImportResource(TmResource):
      -F file=@data/test.zip -X PUT
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
    """
+
   def put(self):
     args = self._put_reqparse()
     # Check tag existence
