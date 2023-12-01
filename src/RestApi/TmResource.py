@@ -566,7 +566,6 @@ class TmImportResource(TmResource):
      -F file=@data/test.zip -X PUT
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
    """
-
   def put(self):
     args = self._put_reqparse()
     # Check tag existence

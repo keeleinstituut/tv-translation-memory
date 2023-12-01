@@ -144,7 +144,7 @@ set -e
 cd ${ELASTICTM}/src
 
 USER=www-data
-COMMAND="celery --app RestApi.Celery.main_celery worker"
+COMMAND="celery --app RestApi.Celery.main_celery worker \$@"
 su \$USER -s /bin/sh -c "\$COMMAND"
 EOF
 
