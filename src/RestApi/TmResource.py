@@ -59,7 +59,6 @@ from RestApi.Models import Tags
 
 # Search/update/delete segments
 class TmResource(Resource):
-  # decorators = [PermissionChecker(user_permission)]
   decorators = [jwt_required()]
 
   db = TMDbApi('opensearch')
@@ -136,7 +135,7 @@ class TmResource(Resource):
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
 
   """
-  @view_tm_permission.require(http_exception=403)
+  @PermissionChecker(view_tm_permission)
   def get(self):
     args = self._get_reqparse().parse_args()
     sl = self._detect_lang(args)
@@ -277,7 +276,7 @@ class TmResource(Resource):
    @apiParam {String} tag Translation unit tag.
    @apiParam {String} [file_name] File name (or source name)
   """
-  @import_tm_permission.require()
+  @PermissionChecker(import_tm_permission)
   def post(self):
     args = self._post_reqparse().parse_args()
 
@@ -359,7 +358,7 @@ class TmResource(Resource):
     -X DELETE
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
     """
-  @delete_tm_permission.require(http_exception=403)
+  @PermissionChecker(delete_tm_permission)
   def delete(self):
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
