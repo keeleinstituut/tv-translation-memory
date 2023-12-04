@@ -624,7 +624,7 @@ class TmImportResource(TmResource):
     # Validate language pairs
     for lp in args.lang_pair:
       if not re.match('^[a-zA-Z]{2}_[a-zA-Z]{2}$', lp):
-          abort(400, mesage="Language pair format is incorrect: {} The correct format example : en_es".format(lp))
+          abort(400, message="Language pair format is incorrect: {} The correct format example : en_es".format(lp))
 
     return args
 
