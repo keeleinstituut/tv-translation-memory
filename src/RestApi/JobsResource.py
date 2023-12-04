@@ -28,7 +28,7 @@ from lib.flask_jwt import current_identity, jwt_required
 from Auth import admin_permission
 from RestApi.Celery import job_kill_task
 from JobApi.ESJobApi import ESJobApi
-from RestApi.Auth import ADMIN
+from RestApi.Auth import ADMIN, PermissionChecker
 
 
 class JobsResource(Resource):
@@ -52,7 +52,7 @@ class JobsResource(Resource):
 
   """
   # TODO: accept limit as a parameter
-  @admin_permission.require(http_exception=403)
+  @PermissionChecker(admin_permission)
   def get(self, job_id=None):
     args = self._get_reqparse()
     jobs = []
@@ -88,7 +88,7 @@ class JobsResource(Resource):
    @apiError {String} 401 Job doesn't exist
 
   """
-  @admin_permission.require(http_exception=403)
+  @PermissionChecker(admin_permission)
   def delete(self, job_id):
     # Setup a job using Celery & ES
     task = job_kill_task.apply_async([job_id])

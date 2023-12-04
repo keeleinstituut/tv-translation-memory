@@ -59,7 +59,6 @@ from RestApi.Models import Tags
 
 # Search/update/delete segments
 class TmResource(Resource):
-  # decorators = [PermissionChecker(user_permission)]
   decorators = [jwt_required()]
 
   db = TMDbApi('opensearch')
@@ -136,7 +135,7 @@ class TmResource(Resource):
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
 
   """
-  @view_tm_permission.require(http_exception=403)
+  @PermissionChecker(view_tm_permission)
   def get(self):
     args = self._get_reqparse().parse_args()
     sl = self._detect_lang(args)
@@ -277,13 +276,14 @@ class TmResource(Resource):
    @apiParam {String} tag Translation unit tag.
    @apiParam {String} [file_name] File name (or source name)
   """
-  @import_tm_permission.require()
+  @PermissionChecker(import_tm_permission)
   def post(self):
     args = self._post_reqparse().parse_args()
 
     tag_ids = args.tag if args.tag else args.domain # backward compatibility fallback
     if not tag_ids:
       abort(403, message="Tag is required option")
+
     # Check tag existence
     self._validate_tag_ids(tag_ids)
 
@@ -358,7 +358,7 @@ class TmResource(Resource):
     -X DELETE
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
     """
-  @delete_tm_permission.require(http_exception=403)
+  @PermissionChecker(delete_tm_permission)
   def delete(self):
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
@@ -438,6 +438,9 @@ class TmResource(Resource):
     if not tag_ids: return True
     for tag_id in tag_ids:
       tag = Tags.query.get(tag_id)
+      tags = UserScopeChecker.filter_domains([tag], key_fn=lambda t: t["id"])
+      tag = tags[0] if tags else None
+
       if not tag:
         if abort_if_not_exists:
           abort(400, mesage="Tag {} doesn't exist. You should add it first by using POST /tags/<tag>".format(tag_id))

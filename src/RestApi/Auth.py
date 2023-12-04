@@ -84,7 +84,6 @@ def on_identity_loaded(sender, identity: KeycloakIdentity):
     identity.provides.add(RoleNeed('{}{}'.format(SSO_REALM_ROLE_PREFIX, realm_role)))
 
   # identity.provides.add(RoleNeed(identity.role))
-  identity.provides.add(RoleNeed('IMPORT_TM'))
 
 
 # Decorator class, combining JWT token check and Principals permission check

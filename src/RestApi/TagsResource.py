@@ -33,7 +33,6 @@ from Auth import admin_permission, PermissionChecker, UserScopeChecker, view_tag
 from TMPreprocessor.TMRegExpPreprocessor import TMRegExpPreprocessor
 
 class TagsResource(Resource):
-  # decorators = [PermissionChecker(user_permission)]
   decorators = [jwt_required()]
   regex_pp = TMRegExpPreprocessor()
 
@@ -51,7 +50,7 @@ class TagsResource(Resource):
   @apiError {String} 403 Insufficient permissions
   
   """
-  @view_tag_permission.require(http_exception=403)
+  @PermissionChecker(view_tag_permission)
   def get(self, tag_id=None):
     args = self._get_reqparse()
 
@@ -136,25 +135,26 @@ class TagsResource(Resource):
   @apiError {String} 403 Insufficient permissions
 
   """
-  @create_tag_permission.require(http_exception=403)
+  @PermissionChecker(create_tag_permission)
   def post(self, tag_id=None):
     args = self._reqparse(tag_id)
     tag = None
 
-    try:
-      if tag_id:
-        tag = Tags.query.get(tag_id)
-        if not tag:
-          abort(404, message="Tag {} doesn't exist".format(tag_id))
-        tag.update(**args)
-        CRUD.update()
-      else:
-        tag = Tags(
-          institution_id=current_identity.institution_id,
-          **args)
-        CRUD.add(tag)
-    except Exception as e:
-      abort(500, message=str(e))
+    if tag_id:
+      tag = Tags.query.get(tag_id)
+      tags = UserScopeChecker.filter_domains([tag], key_fn=lambda t: t["id"])
+      tag = tags[0] if tags else None
+
+      if not tag:
+        abort(404, message="Tag {} doesn't exist".format(tag_id))
+
+      tag.update(**args)
+      CRUD.update()
+    else:
+      tag = Tags(
+        institution_id=current_identity.institution_id,
+        **args)
+      CRUD.add(tag)
     return {
       "message": "Tag {} added/updated successfully".format(tag.id),
       "tag": tag.to_dict()
@@ -198,7 +198,7 @@ class TagsResource(Resource):
   @apiError {String} 404 Tag doesn't exist
 
   """
-  @delete_tag_permission.require(http_exception=403)
+  @PermissionChecker(delete_tag_permission)
   def delete(self, tag_id):
     tag = Tags.query.get(tag_id)
 
