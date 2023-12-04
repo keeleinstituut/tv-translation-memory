@@ -148,6 +148,7 @@ RUN sed -i 's/^\(\[supervisord\]\)$/\1\nnodaemon=true/' /etc/supervisor/supervis
 RUN <<EOF cat > /etc/supervisor/conf.d/supervisor.conf
 [program:gunicorn]
 user=www-data
+environment=HOME="/home/www-data",USER="www-data"
 process_name=%(program_name)s
 numprocs=1
 autostart=true
@@ -167,6 +168,7 @@ command=gunicorn
 
 [program:celery]
 user=www-data
+environment=HOME="/home/www-data",USER="www-data"
 process_name=%(program_name)s
 numprocs=1
 autostart=true
