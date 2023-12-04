@@ -28,10 +28,11 @@ import re
 import datetime
 import json
 import logging
-from flask import Response, request
+from flask import Response, request, current_app
 from flask_restful import Resource, abort, inputs
 from flask_restful.reqparse import RequestParser
 from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 from lib.flask_jwt import current_identity, jwt_required
 
 from RestApi.Celery import tm_delete_task, tm_import_task, tm_export_task, tm_generate_task, \
@@ -608,10 +609,17 @@ class TmImportResource(TmResource):
                         )
 
     args = parser.parse_args()
+    filename = secure_filename(args.file.filename)
+
+    file_ext = os.path.splitext(filename)[1]
+    allowed_extensions = current_app.config['FILEUPLOAD_IMPORT_EXTENSIONS']
+    if file_ext not in allowed_extensions:
+      abort(400, message="Uploaded file extension not {}".format(", ".join(allowed_extensions)))
+
     # Store file in a local tmp dir
     tmp_dir = tempfile.mkdtemp(prefix='elastictm')
     os.chmod(tmp_dir, 0o755)
-    args.full_path = os.path.join(tmp_dir, args.file.filename)
+    args.full_path = os.path.join(tmp_dir, filename)
     args.file.save(args.full_path)
     # Validate language pairs
     for lp in args.lang_pair:
