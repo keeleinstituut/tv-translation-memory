@@ -147,6 +147,7 @@ RUN sed -i 's/^\(\[supervisord\]\)$/\1\nnodaemon=true/' /etc/supervisor/supervis
 
 RUN <<EOF cat > /etc/supervisor/conf.d/supervisor.conf
 [program:gunicorn]
+user=www-data
 process_name=%(program_name)s
 numprocs=1
 autostart=true
@@ -158,13 +159,14 @@ stderr_logfile_maxbytes=0
 directory=$ELASTICTM/src
 command=gunicorn
           -m 007
-          --bind 0.0.0.0:80
+          --bind 0.0.0.0:8000
           --workers $GUNICORN_WORKERS
           --capture-output
           --log-level INFO
           RestApi.Api:app
 
 [program:celery]
+user=www-data
 process_name=%(program_name)s
 numprocs=1
 autostart=true
@@ -177,6 +179,7 @@ directory=$ELASTICTM/src
 command=celery
           --app RestApi.Celery.main_celery
           worker
+          -l INFO
 EOF
 
 RUN <<EOF cat > ${ENTRYPOINT}

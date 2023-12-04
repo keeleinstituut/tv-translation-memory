@@ -130,7 +130,10 @@ RUN <<EOF cat > ${ELASTICTM}/run-webserver.sh
 #!/bin/sh
 set -e
 cd ${ELASTICTM}/src
-flask --app RestApi.Api run --host=0.0.0.0 \$@
+
+USER=www-data
+COMMAND="flask --app RestApi.Api run --host=0.0.0.0 \$@"
+su \$USER -s /bin/sh -c "\$COMMAND"
 EOF
 
 RUN touch ${ELASTICTM}/run-celery.sh
@@ -139,7 +142,10 @@ RUN <<EOF cat > ${ELASTICTM}/run-celery.sh
 #!/bin/sh
 set -e
 cd ${ELASTICTM}/src
-celery --app RestApi.Celery.main_celery worker
+
+USER=www-data
+COMMAND="celery --app RestApi.Celery.main_celery worker"
+su \$USER -s /bin/sh -c "\$COMMAND"
 EOF
 
 RUN touch ${ELASTICTM}/run-shell.sh
@@ -148,7 +154,10 @@ RUN <<EOF cat > ${ELASTICTM}/run-shell.sh
 #!/bin/sh
 set -e
 cd ${ELASTICTM}/src
-flask --app RestApi.Api shell
+
+USER=www-data
+COMMAND="flask --app RestApi.Api shell"
+su \$USER -s /bin/sh -c "\$COMMAND"
 EOF
 
 WORKDIR $ELASTICTM
