@@ -41,23 +41,25 @@ TOLKEVARAV_PHYSICAL_USER = 'TOLKEVARAV_PHYSICAL_USER'
 
 SSO_REALM_ROLE_PREFIX = 'sso_realm/'
 SSO_REALM_FULL_READ_ONLY = SSO_REALM_ROLE_PREFIX + "tv-translation-memory-service-full-read-only-access"
+SSO_REALM_CREATE_TM = SSO_REALM_ROLE_PREFIX + "tv-translation-memory-service-create-tm"
 
 # Admin permission requires admin role
 admin_permission = Permission(RoleNeed(ADMIN))
-full_read_only_permission = Permission(RoleNeed(SSO_REALM_FULL_READ_ONLY))
+sso_full_read_only_permission = Permission(RoleNeed(SSO_REALM_FULL_READ_ONLY))
+sso_realm_create_tm_permission = Permission(RoleNeed(SSO_REALM_CREATE_TM))
 
 # User permission requires either admin or user role
 # user_permission = Permission(RoleNeed(TOLKEVARAV_PHYSICAL_USER)).union(admin_permission)
 
-create_tag_permission = Permission(RoleNeed('CREATE_TM'))
+create_tag_permission = Permission(RoleNeed('CREATE_TM')).union(sso_realm_create_tm_permission)
 view_tag_permission = Permission(RoleNeed('VIEW_TM'))
 delete_tag_permission = Permission(RoleNeed('DELETE_TM'))
-
 edit_tag_permission = Permission(RoleNeed('EDIT_TM_METADATA'))
+
 import_tm_permission = Permission(RoleNeed('IMPORT_TM'))
 export_tm_permission = Permission(RoleNeed('EXPORT_TM'))
 delete_tm_permission = Permission(RoleNeed('DELETE_TM'))
-view_tm_permission = Permission(RoleNeed('VIEW_TM')).union(full_read_only_permission)
+view_tm_permission = Permission(RoleNeed('VIEW_TM')).union(sso_full_read_only_permission)
 
 def identity(access_token):
     identity = KeycloakIdentity(access_token=access_token)
@@ -165,7 +167,7 @@ class UserScopeChecker:
 
   @staticmethod
   def filter_domains(domains, lp=None, key_fn=lambda k: k, allow_unspecified=True):
-    if (current_identity.can(Permission(RoleNeed(SSO_REALM_FULL_READ_ONLY)))):
+    if current_identity.can(sso_full_read_only_permission):
       return domains
 
     def get(obj, key):
