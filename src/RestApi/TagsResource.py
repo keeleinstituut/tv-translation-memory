@@ -29,7 +29,7 @@ from flask_restful.reqparse import RequestParser
 from lib.flask_jwt import current_identity, jwt_required
 
 from RestApi.Models import Tags, CRUD
-from Auth import admin_permission, PermissionChecker, UserScopeChecker, view_tag_permission, create_tag_permission, delete_tag_permission
+from Auth import admin_permission, PermissionChecker, UserScopeChecker, view_tag_permission, create_tag_permission, delete_tag_permission, sso_realm_create_tm_permission
 from TMPreprocessor.TMRegExpPreprocessor import TMRegExpPreprocessor
 
 class TagsResource(Resource):
@@ -138,7 +138,6 @@ class TagsResource(Resource):
   @PermissionChecker(create_tag_permission)
   def post(self, tag_id=None):
     args = self._reqparse(tag_id)
-    tag = None
 
     if tag_id:
       tag = Tags.query.get(tag_id)
@@ -151,9 +150,12 @@ class TagsResource(Resource):
       tag.update(**args)
       CRUD.update()
     else:
-      tag = Tags(
-        institution_id=current_identity.institution_id,
-        **args)
+      institution_id = current_identity.institution_id
+
+      if current_identity.can(sso_realm_create_tm_permission) and args.institution_id:
+        institution_id = args.pop('institution_id')
+
+      tag = Tags(**args, institution_id=institution_id)
       CRUD.add(tag)
     return {
       "message": "Tag {} added/updated successfully".format(tag.id),
@@ -161,17 +163,23 @@ class TagsResource(Resource):
     }
 
   def _reqparse(self, tag_id):
+      creation = not tag_id
+
       parser = RequestParser(bundle_errors=True)
-      parser.add_argument(name='name', help="Tag's name")
-      parser.add_argument(name='type', help="Tag's type")
+      parser.add_argument(required=creation, name='name', help="Tag's name")
+      parser.add_argument(required=creation, name='type', help="Tag's type")
+      parser.add_argument(required=creation, name='tv_domain', help="Tag's Tõlkevärav specific domain")
       parser.add_argument(name='comment', help="Tag's comment")
-      parser.add_argument(name='tv_domain', help="Tag's Tõlkevärav specific domain")
       parser.add_argument(name='tv_tags', action='append', help="Tag's Tõlkevärav specific tags")
 
-      if not tag_id:
-        parser.add_argument(name='lang_pair',
+
+      if creation:
+        parser.add_argument(required=creation, name='lang_pair',
                             help="Language pair to parse from TMX. \ "
                                  "Pair is a string of 2-letter language codes joined with underscore")
+        if current_identity.can(sso_realm_create_tm_permission):
+          parser.add_argument(required=creation, name='institution_id', help="Tag's Tõlkevärav specific institution id")
+
       args = parser.parse_args()
 
       name_length_limit = 150
