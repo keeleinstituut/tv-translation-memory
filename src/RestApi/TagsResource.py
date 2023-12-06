@@ -91,6 +91,10 @@ class TagsResource(Resource):
     if lang_pair_filter:
       tags = filter(lambda t: t['lang_pair'] in lang_pair_filter, tags)
 
+    institution_id_filter = args.get('institution_id')
+    if institution_id_filter:
+      tags = filter(lambda t: str(t['institution_id']) == institution_id_filter, tags)
+
     if tag_id:
       if not tags:
         abort(404, message="Tag {} doesn't exist".format(tag_id))
@@ -107,6 +111,7 @@ class TagsResource(Resource):
     parser.add_argument(location='args', name='type', action='append', help="Tag's type")
     parser.add_argument(location='args', name='tv_domain', action='append', help="Tõlkevärav specific domain")
     parser.add_argument(location='args', name='tv_tags', action='append', help="Tõlkevärav specific tags")
+    parser.add_argument(location='args', name='institution_id', help="Tag's Tõlkevärav specific institution id")
     parser.add_argument(location='args', name='lang_pair', action='append',
                         help="Language pair to parse from TMX. \ "
                              "Pair is a string of 2-letter language codes joined with underscore")

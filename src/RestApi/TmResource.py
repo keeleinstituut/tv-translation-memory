@@ -960,6 +960,7 @@ class TmStatsResource(TmResource):
   decorators = [PermissionChecker(view_tm_permission)]
 
   def get(self):
+    args = self._reqparse()
     stats = self.db.mstats()
     lps = dict()
     # Filter language pairs and domains accordin to valid user scopes
@@ -972,7 +973,10 @@ class TmStatsResource(TmResource):
       # Filter allowed domains
       tags = self._tag_ids2dict(stat.get('domain', dict()).keys())
       allowed_domains += [str(t["id"]) for t in UserScopeChecker.filter_domains(tags, lp, key_fn=lambda t: t["id"])]
+      if args.institution_id:
+        allowed_domains = filter(lambda d: d.institution_id == args.institution_id, allowed_domains)
       allowed_domains = list(set(allowed_domains)) # deduplicate
+
       all_domains = list(stat['domain'].keys())
       for d in all_domains:
         if d not in allowed_domains:
@@ -1009,6 +1013,12 @@ class TmStatsResource(TmResource):
       'lang_pairs': stats.get('lang_pairs'),
       'tag': stats.get('tag', []),
     }
+
+  def _reqparse(self):
+    parser = RequestParser(bundle_errors=True)
+    parser.add_argument(location='args', name='institution_id', help="Tag's Tõlkevärav specific institution id")
+    args = parser.parse_args()
+    return args
 
   # Reverse language pair
   def _reverse_lp(self, lp):
