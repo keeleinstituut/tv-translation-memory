@@ -52,7 +52,7 @@ sso_realm_create_tm_permission = Permission(RoleNeed(SSO_REALM_CREATE_TM))
 # user_permission = Permission(RoleNeed(TOLKEVARAV_PHYSICAL_USER)).union(admin_permission)
 
 create_tag_permission = Permission(RoleNeed('CREATE_TM')).union(sso_realm_create_tm_permission)
-view_tag_permission = Permission(RoleNeed('VIEW_TM'))
+view_tag_permission = Permission(RoleNeed('VIEW_TM')).union(sso_full_read_only_permission)
 delete_tag_permission = Permission(RoleNeed('DELETE_TM'))
 edit_tag_permission = Permission(RoleNeed('EDIT_TM_METADATA'))
 
