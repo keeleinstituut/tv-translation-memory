@@ -972,9 +972,9 @@ class TmStatsResource(TmResource):
       if not stat: stat = stats['lang_pairs'][self._reverse_lp(lp)]
       # Filter allowed domains
       tags = self._tag_ids2dict(stat.get('domain', dict()).keys())
-      allowed_domains += [str(t["id"]) for t in UserScopeChecker.filter_domains(tags, lp, key_fn=lambda t: t["id"])]
       if args.institution_id:
-        allowed_domains = filter(lambda d: d.institution_id == args.institution_id, allowed_domains)
+        tags = filter(lambda t: str(t['institution_id']) == args.institution_id, tags)
+      allowed_domains += [str(t["id"]) for t in UserScopeChecker.filter_domains(tags, lp, key_fn=lambda t: t["id"])]
       allowed_domains = list(set(allowed_domains)) # deduplicate
 
       all_domains = list(stat['domain'].keys())
@@ -1010,7 +1010,7 @@ class TmStatsResource(TmResource):
       return stats
 
     return {
-      'lang_pairs': stats.get('lang_pairs'),
+      # 'lang_pairs': stats.get('lang_pairs'),
       'tag': stats.get('tag', []),
     }
 
