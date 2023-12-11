@@ -431,13 +431,14 @@ class TMDbApi:
     for segment, ter in segments: # This one is for each segment
       # if not new_segments: new_segments = segments
 
+      ##¤#
       # Commented for now, as it is not clear and when query is running fast, it doesn't work
       # Check time
-      wait_time  = self.MATCH_TIME[0] if qparams.aut_trans else self.MATCH_TIME[1]
-      if timer() - self.timer.ts["match_time_query"] > wait_time:
-        if not new_segments: new_segments = segments # make sure we are not returning empty results
-        logging.info("Matching segments (1)")
-        break
+      # wait_time  = self.MATCH_TIME[0] if qparams.aut_trans else self.MATCH_TIME[1]
+      # if timer() - self.timer.ts.get("match_time_query", None) > wait_time:
+      #   if not new_segments: new_segments = segments # make sure we are not returning empty results
+      #   logging.info("Matching segments (1)")
+      #   break
       ####
 
       # Adjust match % according to filters
