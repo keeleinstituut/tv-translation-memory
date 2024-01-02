@@ -52,6 +52,7 @@ from TMDbApi.TMQueryLogger import TMQueryLogger
 from TMPreprocessor.Xml.XmlUtils import XmlUtils
 from TMOutputer.TMOutputerMoses import TMOutputerMoses
 from TMX.TMXParser import TMXParser
+from FileScan import scan_file
 
 from JobApi.ESJobApi import ESJobApi
 from RestApi.Models import Tags
@@ -625,6 +626,9 @@ class TmImportResource(TmResource):
     allowed_extensions = current_app.config['FILEUPLOAD_IMPORT_EXTENSIONS']
     if file_ext not in allowed_extensions:
       abort(400, message="Uploaded file extension not {}".format(", ".join(allowed_extensions)))
+
+    if any(map(lambda r: r['is_infected'], scan_file(args.file))):
+      abort(400, message="Malicious file")
 
     # Store file in a local tmp dir
     tmp_dir = tempfile.mkdtemp(prefix='elastictm')
