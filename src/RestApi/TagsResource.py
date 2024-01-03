@@ -29,7 +29,7 @@ from flask_restful.reqparse import RequestParser
 from lib.flask_jwt import current_identity, jwt_required
 
 from RestApi.Models import Tags, CRUD
-from Auth import admin_permission, PermissionChecker, UserScopeChecker, view_tag_permission, create_tag_permission, delete_tag_permission, sso_realm_create_tm_permission
+from Auth import admin_permission, PermissionChecker, UserScopeChecker, view_tag_permission, create_tag_permission, delete_tag_permission, sso_realm_create_tm_permission, edit_tag_permission
 from TMPreprocessor.TMRegExpPreprocessor import TMRegExpPreprocessor
 
 class TagsResource(Resource):
@@ -140,11 +140,11 @@ class TagsResource(Resource):
   @apiError {String} 403 Insufficient permissions
 
   """
-  @PermissionChecker(create_tag_permission)
   def post(self, tag_id=None):
     args = self._reqparse(tag_id)
 
     if tag_id:
+      edit_tag_permission.test(http_exception=403)
       tag = Tags.query.get(tag_id)
       tags = UserScopeChecker.filter_domains([tag], key_fn=lambda t: t["id"])
       tag = tags[0] if tags else None
@@ -155,6 +155,7 @@ class TagsResource(Resource):
       tag.update(**args)
       CRUD.update()
     else:
+      create_tag_permission.test(http_exception=403)
       institution_id = current_identity.institution_id
 
       if current_identity.can(sso_realm_create_tm_permission) and args.institution_id:
