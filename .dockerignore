@@ -6,3 +6,8 @@ README.md
 /helm/
 /doc/
 /data/
+/venv/
+.dockerignore
+.env
+.env.example
+Dockerfile*
