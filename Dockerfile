@@ -78,9 +78,11 @@ RUN gem install pragmatic_segmenter -v 0.3.23
 
 # Download and install Kytea
 WORKDIR /tmp
-RUN wget https://www.phontron.com/kytea/download/kytea-0.4.7.tar.gz && \
-    # TODO: Verify checksum before continuing?
-    tar -xzf kytea-0.4.7.tar.gz
+COPY ./tools/kytea/kytea-0.4.7.tar.gz .
+RUN tar -xzf kytea-0.4.7.tar.gz
+#RUN wget https://www.phontron.com/kytea/download/kytea-0.4.7.tar.gz && \
+#    # TODO: Verify checksum before continuing?
+#    tar -xzf kytea-0.4.7.tar.gz
 WORKDIR /tmp/kytea-0.4.7
 RUN if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
         then ./configure --build=aarch64-unknown-linux-gnu; \
