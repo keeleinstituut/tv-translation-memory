@@ -25,3 +25,4 @@ services:
     volumes:
       - ./src:/opt/elastictm/src
       - ./conf:/opt/elastictm/conf
+      - ./requirements.txt:/opt/elastictm/requirements.txt
