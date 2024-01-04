@@ -17,6 +17,10 @@ def scan_file(*files):
     if response.status_code != 200:
         raise Exception('Invalid response from filescan service: HTTP {}, {}'.format(response.status_code, response.text))
 
+    # Reset filestreams
+    for f in files:
+        f.stream.seek(0)
+
     return response.json()['data']['result']
 
 
