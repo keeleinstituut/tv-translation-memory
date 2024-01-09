@@ -3,7 +3,18 @@ from celery import Celery
 from Config.Config import G_CONFIG
 from JobApi.SparkTaskDispatcher import SparkTaskDispatcher
 
-redis_url = 'redis://{}:{}/0'.format(G_CONFIG.config['redis']['host'], G_CONFIG.config['redis']['port'])
+redis_host = G_CONFIG.config['redis']['host']
+redis_port = G_CONFIG.config['redis']['port']
+redis_user = G_CONFIG.config['redis']['user']
+redis_password = G_CONFIG.config['redis']['password']
+
+if redis_password != 'REDIS_PASSWORD':
+    if redis_user != 'REDIS_USER':
+        redis_url = 'redis://{}:{}@{}:{}/0'.format(redis_user, redis_password, redis_host, redis_port)
+    else:
+        redis_url = 'redis://:{}@{}:{}/0'.format(redis_password, redis_host, redis_port)
+else:
+    redis_url = 'redis://{}:{}/0'.format(redis_host, redis_port)
 
 main_celery = Celery('main',
                 broker=redis_url,
