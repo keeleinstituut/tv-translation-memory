@@ -2,12 +2,41 @@ from Config.Config import G_CONFIG
 from opensearchpy import OpenSearch, helpers, Search, MultiSearch, Q, exceptions
 
 
-class OpenSearchHelper():
+class OpenSearchHelper:
 
     def __init__(self):
         config = G_CONFIG.config['opensearch']
-        self.es = OpenSearch(hosts=[{'host': config['host'], 'port': config['port']}],
-                               timeout=30, max_retries=3, retry_on_timeout=True)
+
+        def parse_bool(value, default=False):
+            if not value:
+                return default
+            return value.lower() in ['true', '1', 'y', 'yes', 't']
+
+        host = config['host'].replace('OPENSEARCH_HOST', '')
+        port = config['port'].replace('OPENSEARCH_PORT', '')
+        user = config['user'].replace('OPENSEARCH_USER', '')
+        password = config['password'].replace('OPENSEARCH_PASSWORD', '')
+        use_ssl = parse_bool(config['use_ssl'].replace('OPENSEARCH_USE_SSL', ''), default=False)
+        verify_certs = parse_bool(config['verify_certs'].replace('OPENSEARCH_VERIFY_CERTS', ''), default=True)
+
+        opensearch_options = {
+            "hosts": [
+                {
+                    'host': host,
+                    'port': port,
+                },
+            ],
+            "timeout": 30,
+            "max_retries": 3,
+            "retry_on_timeout": True,
+            "use_ssl": use_ssl,
+            "verify_certs": verify_certs,
+        }
+
+        if user or password:
+            opensearch_options['http_auth'] = (user, password)
+
+        self.es = OpenSearch(**opensearch_options)
 
     def indices_put_template(self, name, body):
         try:
