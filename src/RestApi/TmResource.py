@@ -151,8 +151,9 @@ class TmResource(Resource):
 
     # Moses format output - either translation or original query
     if args.out == 'moses':
-      return Response(out, mimetype='text/xml; charset=utf-8')
-    return Response(json.dumps(out, ensure_ascii=False), mimetype='application/json; charset=utf-8')
+      return Response(out, mimetype='text/xml')
+
+    return Response(json.dumps(out, ensure_ascii=False), mimetype='application/json')
 
   def _query(self, qlist, args, penalty=0):
     if args.strip_tags:
@@ -536,9 +537,9 @@ class TmBatchQueryResource(TmResource):
 
     # Moses format output - either translation or original query
     if args.out == 'moses':
-      return Response(b'\n'.join(out_list), mimetype='text/xml; charset=utf-8')
+      return Response(b'\n'.join(out_list), mimetype='text/xml')
 
-    return Response(json.dumps(out_list, ensure_ascii=False), mimetype='application/json; charset=utf-8')
+    return Response(json.dumps(out_list, ensure_ascii=False), mimetype='application/json')
 
 
   def post(self):
