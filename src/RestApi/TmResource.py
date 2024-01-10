@@ -255,7 +255,8 @@ class TmResource(Resource):
     parser.add_argument(location='args', name='tmeta', required=False, help="Target metadata (valid JSON)", type=self._validate_json, default={})
     parser.add_argument(location='args', name='limit', type=int, default=10, help="Limit output to this number of segments (for JSON output. For Moses, only one segment will be output")
     parser.add_argument(location='args', name='duplicates_only', type=inputs.boolean, default=False, help="Duplicate segments only")
-    parser.add_argument(location='args', name='out', choices=['json', 'moses'], help="Output format", default='json')
+    # parser.add_argument(location='args', name='out', choices=['json', 'moses'], help="Output format", default='json')
+    parser.add_argument(location='args', name='out', choices=['json'], help="Output format", default='json')
     parser.add_argument(location='args', name='strip_tags', type=inputs.boolean, default=False, help="Strip all XML tags from the query")
     min_match_default=65
     parser.add_argument(location='args', name='min_match', type=int, default=min_match_default, help="Return only match above or equal to given threshold (0-100) Default is {}.".format(min_match_default))
