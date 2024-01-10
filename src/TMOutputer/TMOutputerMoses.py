@@ -24,6 +24,7 @@
 import sys
 sys.path.append("..")
 import xml.etree.ElementTree as ElementTree
+from xml.sax.saxutils import escape
 import logging
 
 from TMDbApi.TMTranslationUnit import TMTranslationUnit
@@ -32,10 +33,13 @@ from TMOutputer.TMOutputer import TMOutputer
 class TMOutputerMoses(TMOutputer):
 
   def output_segment(self, segment, match, use_prob=False):
-    if not match : return segment.target_text
+    escaped_target_text = escape(segment.target_text)
+    escaped_source_text = escape(segment.source_text)
+
+    if not match : return escaped_target_text
     e = ElementTree.Element('np')
-    e.text = segment.source_text
-    e.set('translation', segment.target_text)
+    e.text = escaped_source_text
+    e.set('translation', escaped_target_text)
     # TODO: set probability accordingly
     if use_prob:
       e.set('prob', str(match/100))
