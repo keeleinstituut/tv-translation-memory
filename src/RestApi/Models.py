@@ -39,7 +39,9 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://' + POSTGRESQL_USER + ':' + POSTGRESQL_PASSWORD + '@' \
                                         + POSTGRESQL_HOST + ':' + str(POSTGRESQL_PORT) + '/' \
                                         + POSTGRESQL_DB + '?client_encoding=utf8'
-db = SQLAlchemy(app)
+db = SQLAlchemy(app, engine_options={
+    'pool_pre_ping': True
+})
 
 
 # Class to add, update and delete data via SQLALchemy sessions
