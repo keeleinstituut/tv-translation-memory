@@ -52,6 +52,7 @@ from TMDbApi.TMQueryLogger import TMQueryLogger
 from TMPreprocessor.Xml.XmlUtils import XmlUtils
 from TMOutputer.TMOutputerMoses import TMOutputerMoses
 from TMX.TMXParser import TMXParser
+from FileScan import scan_file
 
 from JobApi.ESJobApi import ESJobApi
 from RestApi.Models import Tags
@@ -150,8 +151,9 @@ class TmResource(Resource):
 
     # Moses format output - either translation or original query
     if args.out == 'moses':
-      return Response(out, mimetype='text/xml; charset=utf-8')
-    return Response(json.dumps(out, ensure_ascii=False), mimetype='application/json; charset=utf-8')
+      return Response(out, mimetype='text/xml')
+
+    return Response(json.dumps(out, ensure_ascii=False), mimetype='application/json')
 
   def _query(self, qlist, args, penalty=0):
     if args.strip_tags:
@@ -160,6 +162,7 @@ class TmResource(Resource):
     # TODO: paginate
     moses_out = []
     rlist = []
+    tlist = []
     if args.operation_match=='None':
       op_match = []
     else: op_match = args.operation_match.split(',')
@@ -185,6 +188,7 @@ class TmResource(Resource):
       moses_qout = _q.encode('utf-8')
       count = 0
       r = []
+      t = []
       qresults = results[0] if len(results) else []
       for (segment,match) in qresults:
         if segment.domain:
@@ -193,12 +197,14 @@ class TmResource(Resource):
           elif not UserScopeChecker.check((args.slang, args.tlang), segment.domain):
             logging.debug("Filtered out segment (out of user scope): {}".format(segment.to_dict_short()))
             continue
-          filtered_tags = [str(t["id"]) for t in UserScopeChecker.filter_domains(self._tag_ids2dict(segment.domain), key_fn=lambda t:t["id"], allow_unspecified=False)]
-          if not filtered_tags or (tag_ids and not set(tag_ids).issubset(set(filtered_tags))):
+          filtered_tags = UserScopeChecker.filter_domains(self._tag_ids2dict(segment.domain), key_fn=lambda t:t["id"], allow_unspecified=False)
+          filtered_tags_ids = [str(t["id"]) for t in filtered_tags]
+          if not filtered_tags_ids or (tag_ids and not set(tag_ids).issubset(set(filtered_tags_ids))):
             logging.debug("Filtered out segment from other domains".format(segment.to_dict_short()))
             continue
         else:
           filtered_tags = [] # Segment's domain is empty -> it is machine translation result, take it in any case
+          filtered_tags_ids = []
         if args.out == 'moses':
           moses_qout = TMOutputerMoses().output_segment(segment, match)
           break
@@ -215,16 +221,18 @@ class TmResource(Resource):
                         "update_date": segment.update_date,
                         "username": segment.username,
                         "file_name": segment.file_name,
-                        "tag": filtered_tags
+                        "tag": filtered_tags_ids
         }
         # TODO: hide some fields for user?
         if (current_identity.role != ADMIN):
           pass
         r.append(segment_json)
+        t.append(filtered_tags)
         count += 1
         if count >= args.limit: break
       moses_out.append(moses_qout)
       rlist.append(r)
+      tlist.append(t)
     # Apply match penalty
     if penalty:
       for r in rlist: r['match'] -= penalty
@@ -235,7 +243,8 @@ class TmResource(Resource):
     if args.out == 'moses':
       return moses_out
     if not rlist: rlist = [[] for i in range(0,len(qlist))] # if no results, make sure it will have the same length as qlist
-    return [{'query': q, 'results': r} for q,r in zip(qlist, rlist)]
+
+    return [{'query': q, 'results': r, 'tags': list({v['id']: v for v in sum(t, [])}.values())} for q, r, t in zip(qlist, rlist, tlist)]
 
 
   def _get_reqparse(self):
@@ -247,7 +256,8 @@ class TmResource(Resource):
     parser.add_argument(location='args', name='tmeta', required=False, help="Target metadata (valid JSON)", type=self._validate_json, default={})
     parser.add_argument(location='args', name='limit', type=int, default=10, help="Limit output to this number of segments (for JSON output. For Moses, only one segment will be output")
     parser.add_argument(location='args', name='duplicates_only', type=inputs.boolean, default=False, help="Duplicate segments only")
-    parser.add_argument(location='args', name='out', choices=['json', 'moses'], help="Output format", default='json')
+    # parser.add_argument(location='args', name='out', choices=['json', 'moses'], help="Output format", default='json')
+    parser.add_argument(location='args', name='out', choices=['json'], help="Output format", default='json')
     parser.add_argument(location='args', name='strip_tags', type=inputs.boolean, default=False, help="Strip all XML tags from the query")
     min_match_default=65
     parser.add_argument(location='args', name='min_match', type=int, default=min_match_default, help="Return only match above or equal to given threshold (0-100) Default is {}.".format(min_match_default))
@@ -528,9 +538,9 @@ class TmBatchQueryResource(TmResource):
 
     # Moses format output - either translation or original query
     if args.out == 'moses':
-      return Response(b'\n'.join(out_list), mimetype='text/xml; charset=utf-8')
+      return Response(b'\n'.join(out_list), mimetype='text/xml')
 
-    return Response(json.dumps(out_list, ensure_ascii=False), mimetype='application/json; charset=utf-8')
+    return Response(json.dumps(out_list, ensure_ascii=False), mimetype='application/json')
 
 
   def post(self):
@@ -619,6 +629,9 @@ class TmImportResource(TmResource):
     if file_ext not in allowed_extensions:
       abort(400, message="Uploaded file extension not {}".format(", ".join(allowed_extensions)))
 
+    if any(map(lambda r: r['is_infected'], scan_file(args.file))):
+      abort(400, message="Malicious file")
+
     # Store file in a local tmp dir
     tmp_dir = tempfile.mkdtemp(prefix='elastictm')
     os.chmod(tmp_dir, 0o755)
@@ -626,7 +639,7 @@ class TmImportResource(TmResource):
     args.file.save(args.full_path)
     # Validate language pairs
     for lp in args.lang_pair:
-      if not re.match('^[a-zA-Z]{2}_[a-zA-Z]{2}$', lp):
+      if not re.match('^[a-zA-Z]{2,3}_[a-zA-Z]{2,3}$', lp):
           abort(400, message="Language pair format is incorrect: {} The correct format example : en_es".format(lp))
 
     return args
@@ -960,6 +973,7 @@ class TmStatsResource(TmResource):
   decorators = [PermissionChecker(view_tm_permission)]
 
   def get(self):
+    args = self._reqparse()
     stats = self.db.mstats()
     lps = dict()
     # Filter language pairs and domains accordin to valid user scopes
@@ -971,8 +985,11 @@ class TmStatsResource(TmResource):
       if not stat: stat = stats['lang_pairs'][self._reverse_lp(lp)]
       # Filter allowed domains
       tags = self._tag_ids2dict(stat.get('domain', dict()).keys())
+      if args.institution_id:
+        tags = filter(lambda t: str(t['institution_id']) == args.institution_id, tags)
       allowed_domains += [str(t["id"]) for t in UserScopeChecker.filter_domains(tags, lp, key_fn=lambda t: t["id"])]
       allowed_domains = list(set(allowed_domains)) # deduplicate
+
       all_domains = list(stat['domain'].keys())
       for d in all_domains:
         if d not in allowed_domains:
@@ -1006,9 +1023,15 @@ class TmStatsResource(TmResource):
       return stats
 
     return {
-      'lang_pairs': stats.get('lang_pairs'),
+      # 'lang_pairs': stats.get('lang_pairs'),
       'tag': stats.get('tag', []),
     }
+
+  def _reqparse(self):
+    parser = RequestParser(bundle_errors=True)
+    parser.add_argument(location='args', name='institution_id', help="Tag's Tõlkevärav specific institution id")
+    args = parser.parse_args()
+    return args
 
   # Reverse language pair
   def _reverse_lp(self, lp):

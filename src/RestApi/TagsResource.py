@@ -29,7 +29,7 @@ from flask_restful.reqparse import RequestParser
 from lib.flask_jwt import current_identity, jwt_required
 
 from RestApi.Models import Tags, CRUD
-from Auth import admin_permission, PermissionChecker, UserScopeChecker, view_tag_permission, create_tag_permission, delete_tag_permission
+from Auth import admin_permission, PermissionChecker, UserScopeChecker, view_tag_permission, create_tag_permission, delete_tag_permission, sso_realm_create_tm_permission, edit_tag_permission
 from TMPreprocessor.TMRegExpPreprocessor import TMRegExpPreprocessor
 
 class TagsResource(Resource):
@@ -91,6 +91,10 @@ class TagsResource(Resource):
     if lang_pair_filter:
       tags = filter(lambda t: t['lang_pair'] in lang_pair_filter, tags)
 
+    institution_id_filter = args.get('institution_id')
+    if institution_id_filter:
+      tags = filter(lambda t: str(t['institution_id']) == institution_id_filter, tags)
+
     if tag_id:
       if not tags:
         abort(404, message="Tag {} doesn't exist".format(tag_id))
@@ -107,6 +111,7 @@ class TagsResource(Resource):
     parser.add_argument(location='args', name='type', action='append', help="Tag's type")
     parser.add_argument(location='args', name='tv_domain', action='append', help="Tõlkevärav specific domain")
     parser.add_argument(location='args', name='tv_tags', action='append', help="Tõlkevärav specific tags")
+    parser.add_argument(location='args', name='institution_id', help="Tag's Tõlkevärav specific institution id")
     parser.add_argument(location='args', name='lang_pair', action='append',
                         help="Language pair to parse from TMX. \ "
                              "Pair is a string of 2-letter language codes joined with underscore")
@@ -115,7 +120,7 @@ class TagsResource(Resource):
     lang_pairs = args.get('lang_pair')
     if lang_pairs is not None:
       for lang_pair in lang_pairs:
-        if not re.match('^[a-zA-Z]{2}_[a-zA-Z]{2}$', lang_pair):
+        if not re.match('^[a-zA-Z]{2,3}_[a-zA-Z]{2,3}$', lang_pair):
           abort(400, mesage="Language pair format is incorrect: {} The correct format example : en_es".format(lang_pair))
 
     return args
@@ -135,12 +140,11 @@ class TagsResource(Resource):
   @apiError {String} 403 Insufficient permissions
 
   """
-  @PermissionChecker(create_tag_permission)
   def post(self, tag_id=None):
     args = self._reqparse(tag_id)
-    tag = None
 
     if tag_id:
+      edit_tag_permission.test(http_exception=403)
       tag = Tags.query.get(tag_id)
       tags = UserScopeChecker.filter_domains([tag], key_fn=lambda t: t["id"])
       tag = tags[0] if tags else None
@@ -151,9 +155,13 @@ class TagsResource(Resource):
       tag.update(**args)
       CRUD.update()
     else:
-      tag = Tags(
-        institution_id=current_identity.institution_id,
-        **args)
+      create_tag_permission.test(http_exception=403)
+      institution_id = current_identity.institution_id
+
+      if current_identity.can(sso_realm_create_tm_permission) and args.institution_id:
+        institution_id = args.pop('institution_id')
+
+      tag = Tags(**args, institution_id=institution_id)
       CRUD.add(tag)
     return {
       "message": "Tag {} added/updated successfully".format(tag.id),
@@ -161,24 +169,30 @@ class TagsResource(Resource):
     }
 
   def _reqparse(self, tag_id):
+      creation = not tag_id
+
       parser = RequestParser(bundle_errors=True)
-      parser.add_argument(name='name', help="Tag's name")
-      parser.add_argument(name='type', help="Tag's type")
+      parser.add_argument(required=creation, name='name', help="Tag's name")
+      parser.add_argument(required=creation, name='type', help="Tag's type")
+      parser.add_argument(required=creation, name='tv_domain', help="Tag's Tõlkevärav specific domain")
       parser.add_argument(name='comment', help="Tag's comment")
-      parser.add_argument(name='tv_domain', help="Tag's Tõlkevärav specific domain")
       parser.add_argument(name='tv_tags', action='append', help="Tag's Tõlkevärav specific tags")
 
-      if not tag_id:
-        parser.add_argument(name='lang_pair',
+
+      if creation:
+        parser.add_argument(required=creation, name='lang_pair',
                             help="Language pair to parse from TMX. \ "
                                  "Pair is a string of 2-letter language codes joined with underscore")
+        if current_identity.can(sso_realm_create_tm_permission):
+          parser.add_argument(required=creation, name='institution_id', help="Tag's Tõlkevärav specific institution id")
+
       args = parser.parse_args()
 
       name_length_limit = 150
       if len(args.name) > name_length_limit:
         abort(400, message="Name can't be longer than {} characters".format(name_length_limit))
 
-      if 'lang_pair' in args and not re.match('^[a-zA-Z]{2}_[a-zA-Z]{2}$', args.lang_pair):
+      if 'lang_pair' in args and not re.match('^[a-zA-Z]{2,3}_[a-zA-Z]{2,3}$', args.lang_pair):
         abort(400, message="Language pair format is incorrect: {} The correct format example : en_es".format(args.lang_pair))
 
       return args

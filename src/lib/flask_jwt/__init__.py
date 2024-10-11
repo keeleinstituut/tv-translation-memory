@@ -8,12 +8,13 @@ from functools import wraps
 
 import jwt
 
-from flask import current_app, request, jsonify, _request_ctx_stack
+from flask import current_app, request, jsonify
+from flask import g
 from werkzeug.local import LocalProxy
 
 logger = logging.getLogger(__name__)
 
-current_identity = LocalProxy(lambda: getattr(_request_ctx_stack.top, 'current_identity', None))
+current_identity = LocalProxy(lambda: getattr(g, '_flask_jwt_current_identity', None))
 
 _jwt = LocalProxy(lambda: current_app.extensions['jwt'])
 
@@ -150,7 +151,7 @@ def _jwt_required(realm):
     except jwt.InvalidTokenError as e:
         raise JWTError('Invalid token', str(e))
 
-    _request_ctx_stack.top.current_identity = identity = _jwt.identity_callback(payload)
+    g._flask_jwt_current_identity = identity = _jwt.identity_callback(payload)
 
     if identity is None:
         raise JWTError('Invalid JWT', 'User does not exist')

@@ -73,6 +73,9 @@ from RestApi.TmResource import TmResource, TmBatchQueryResource, TmImportResourc
 from RestApi.JobsResource import JobsResource
 from RestApi.TagsResource import TagsResource
 
+from flask_cors import CORS
+CORS(app)
+
 api = Api(app)
 api_prefix = "/api/v{}".format(app.config['VERSION'])
 

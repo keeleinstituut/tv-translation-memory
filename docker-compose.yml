@@ -10,6 +10,7 @@ services:
 
   redis:
     image: redis:latest
+    command: /bin/sh -c 'redis-server --requirepass ${REDIS_PASSWORD}'
 
   opensearch-node:
     image: opensearchproject/opensearch:latest

@@ -9,6 +9,10 @@ services:
       - SPARK_WORKER_COUNT=2
       - OPENSEARCH_HOST=opensearch-node
       - OPENSEARCH_PORT=9200
+#      - OPENSEARCH_USER=admin
+#      - OPENSEARCH_PASSWORD=admin
+#      - OPENSEARCH_USE_SSL=True
+#      - OPENSEARCH_VERIFY_CERTS=False
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=${POSTGRES_DB}
@@ -16,10 +20,10 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-#      - KEYCLOAK_URL=https://sso.dev.tolkevarav.eki.ee
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+#       - KEYCLOAK_URL=https://sso.dev.tolkevarav.eki.ee
       - KEYCLOAK_URL=http://host.docker.internal:8180
       - KEYCLOAK_REALM=tolkevarav-dev
+      - FILESCAN_API_URL=http://host.docker.internal:8010/api
     ports:
       - 5000:8000
-#    volumes:
-#      - ./src:/opt/elastictm/src

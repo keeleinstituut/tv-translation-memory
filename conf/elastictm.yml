@@ -13,6 +13,10 @@ spark:
 opensearch:
   host: ${OPENSEARCH_HOST} # 127.0.0.1
   port: ${OPENSEARCH_PORT}
+  user: ${OPENSEARCH_USER}
+  password: ${OPENSEARCH_PASSWORD}
+  use_ssl: ${OPENSEARCH_USE_SSL}
+  verify_certs: ${OPENSEARCH_VERIFY_CERTS}
 
 postgresql:
   host: ${POSTGRES_HOST} # localhost
@@ -24,10 +28,15 @@ postgresql:
 redis:
   host: ${REDIS_HOST}
   port: ${REDIS_PORT}
+  user: ${REDIS_USER}
+  password: ${REDIS_PASSWORD}
 
 keycloak:
   url: ${KEYCLOAK_URL}
   realm: ${KEYCLOAK_REALM}
+
+filescan:
+  api-url: ${FILESCAN_API_URL}
 
 query:
     #Penalize match if segment doesn't belong to requested domain or it is a dirty segment
