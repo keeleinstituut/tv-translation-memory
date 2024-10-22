@@ -3,14 +3,14 @@ flask-cors==4.0.0
 flask-restful==0.3.10
 flask-principal==0.4.0
 chardet==5.2.0
-celery==5.3.6
+celery==5.4.0
 flower==2.0.1
 flask-sqlalchemy==3.1.1
 langid==1.1.6
 networkx==3.2.1
 babel==2.14.0
-elasticsearch==6.8.2
-elasticsearch-dsl==6.4.0
+elasticsearch==7.17.12
+elasticsearch-dsl==7.4.1
 iso639==0.1.4
 couchdb==1.2
 pymongo==4.6.1
