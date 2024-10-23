@@ -3,6 +3,7 @@ import amqp
 import datetime
 from flask import request
 
+from Config.Config import G_CONFIG
 from lib.flask_jwt import current_jwt, current_identity
 
 
@@ -12,7 +13,9 @@ class _AuditLogPublisher:
 
     def init_connection(self):
         self._connection = amqp.Connection(
-            host='host.docker.internal:5672',
+            host=G_CONFIG.config['rabbitmq']['host'] + ':' + G_CONFIG.config['rabbitmq']['port'],
+            userid=G_CONFIG.config['rabbitmq']['user'],
+            password=G_CONFIG.config['rabbitmq']['password'],
             exchange='audit-log-events',
             confirm_publish=True)
         self._connection.connect()

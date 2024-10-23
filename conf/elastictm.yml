@@ -31,6 +31,12 @@ redis:
   user: ${REDIS_USER}
   password: ${REDIS_PASSWORD}
 
+rabbitmq:
+  host: ${RABBITMQ_HOST}
+  port: ${RABBITMQ_PORT}
+  user: ${RABBITMQ_USER}
+  password: ${RABBITMQ_PASSWORD}
+
 keycloak:
   url: ${KEYCLOAK_URL}
   realm: ${KEYCLOAK_REALM}
