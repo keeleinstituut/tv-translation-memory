@@ -209,7 +209,7 @@ class TmResource(Resource):
           moses_qout = TMOutputerMoses().output_segment(segment, match)
           break
         # Check perfect match
-        if (args.smeta or args.tmeta) and segment.source_metadata == args.smeta and segment.target_metadata == args.tmeta:
+        if (args.smeta or args.tmeta) and (segment.source_metadata == args.smeta or (not args.smeta and not segment.source_metadata)) and (segment.target_metadata == args.tmeta or (not args.tmeta and not segment.target_metadata)):
           match += 1
           if int(match) > 100:
             r.clear() # Clear all previous results to leave only 101
