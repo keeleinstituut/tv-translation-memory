@@ -38,3 +38,4 @@ opensearch-dsl==2.1.0
 opensearch-py==2.2.0
 pyjwt==2.8.0
 cryptography==41.0.7
+amqp==5.2.0

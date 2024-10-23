@@ -33,6 +33,8 @@ from flask_restful import Resource, abort, inputs
 from flask_restful.reqparse import RequestParser
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
+
+from AuditLogClient import send_audit_log, AuditLogMessage
 from lib.flask_jwt import current_identity, jwt_required
 
 from RestApi.Celery import tm_delete_task, tm_import_task, tm_export_task, tm_generate_task, \
@@ -605,6 +607,14 @@ class TmImportResource(TmResource):
     # Setup a job using Celery & ES
     task = tm_import_task.apply_async()
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='import', file=args.full_path, domain=tag_ids, lang_pairs=lang_pairs)
+
+    send_audit_log(AuditLogMessage(
+      event_type='IMPORT_TRANSLATION_MEMORY',
+      event_parameters={
+        'translation_memory_id': tag.id,
+        'translation_memory_name': tag.name,
+      }))
+
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
   def _parse_lang_pairs(self, lang_pairs):
@@ -688,6 +698,16 @@ class TmExportResource(TmResource):
 
     task = tm_export_task.apply_async()
     self.job_api.init_job(job_id=task.id, username=current_identity.id, type='export', filter=filters, slang=args.slang, tlang=args.tlang, limit=args.limit, duplicates_only=args.duplicates_only)
+
+    tag = Tags.query.get(filters['domain'][0])
+
+    send_audit_log(AuditLogMessage(
+      event_type='EXPORT_TRANSLATION_MEMORY',
+      event_parameters={
+        'translation_memory_id': tag.id,
+        'translation_memory_name': tag.name,
+      }))
+
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
     #

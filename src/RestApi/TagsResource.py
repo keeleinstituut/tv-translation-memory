@@ -26,6 +26,7 @@ import re
 from flask_restful import Resource, abort
 from flask_restful.reqparse import RequestParser
 
+from AuditLogClient import send_audit_log, AuditLogMessage
 from lib.flask_jwt import current_identity, jwt_required
 
 from RestApi.Models import Tags, CRUD
@@ -146,6 +147,8 @@ class TagsResource(Resource):
     if tag_id:
       edit_tag_permission.test(http_exception=403)
       tag = Tags.query.get(tag_id)
+      tag_object_identity_subset = tag.get_audit_log_identity_subset()
+      tag_pre_modification_subset = tag.to_audit_log_representation()
       tags = UserScopeChecker.filter_domains([tag], key_fn=lambda t: t["id"])
       tag = tags[0] if tags else None
 
@@ -154,6 +157,16 @@ class TagsResource(Resource):
 
       tag.update(**args)
       CRUD.update()
+
+      tag_post_modification_subset = tag.to_audit_log_representation()
+      send_audit_log(AuditLogMessage(
+        event_type='MODIFY_OBJECT',
+        event_parameters={
+          'object_type': Tags.AUDIT_LOG_OBJECT_TYPE,
+          'object_identity_subset': tag_object_identity_subset,
+          'pre_modification_subset': tag_pre_modification_subset,
+          'post_modification_subset': tag_post_modification_subset,
+        }))
     else:
       create_tag_permission.test(http_exception=403)
       institution_id = current_identity.institution_id
@@ -163,6 +176,16 @@ class TagsResource(Resource):
 
       tag = Tags(**args, institution_id=institution_id)
       CRUD.add(tag)
+
+      send_audit_log(AuditLogMessage(
+        event_type='CREATE_OBJECT',
+        event_parameters={
+          'object_type': Tags.AUDIT_LOG_OBJECT_TYPE,
+          'object_data': tag.to_audit_log_representation(),
+          'object_identity_subset': tag.get_audit_log_identity_subset()
+        }))
+
+
     return {
       "message": "Tag {} added/updated successfully".format(tag.id),
       "tag": tag.to_dict()
@@ -226,6 +249,15 @@ class TagsResource(Resource):
         abort(500, message=str(e))
     else:
       abort(404, message="Tag {} doesn't exist".format(tag_id))
+
+
+    send_audit_log(AuditLogMessage(
+      event_type='REMOVE_OBJECT',
+      event_parameters={
+        'object_type': Tags.AUDIT_LOG_OBJECT_TYPE,
+        'object_identity_subset': tag.get_audit_log_identity_subset()
+      }))
+
     return {
       "message": "Tag {} deleted successfully".format(tag_id),
       "tag": tag.to_dict()

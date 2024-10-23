@@ -42,6 +42,26 @@ class KeycloakIdentity(Identity):
         return self._tolkevarav_claim.get('institutionUserId')
 
     @property
+    def institution_user_forename(self):
+        return self._tolkevarav_claim.get('forename')
+
+    @property
+    def institution_user_surname(self):
+        return self._tolkevarav_claim.get('surname')
+
+    @property
+    def institution_user_pic(self):
+        return self._tolkevarav_claim.get('personalIdentificationCode')
+
+    @property
+    def department_id(self):
+        return self._tolkevarav_claim.get('department', {}).get('id')
+
+    @property
+    def department_name(self):
+        return self._tolkevarav_claim.get('department', {}).get('name')
+
+    @property
     def privileges(self):
         return self._tolkevarav_claim.get('privileges')
 

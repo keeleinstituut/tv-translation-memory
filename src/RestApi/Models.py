@@ -88,6 +88,8 @@ class CRUD:
 
 
 class Tags(db.Model):
+   AUDIT_LOG_OBJECT_TYPE = 'TRANSLATION_MEMORY'
+
    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
    created_at = db.Column(db.DateTime, default=sql.func.now())
    institution_id = db.Column(db.Uuid)
@@ -152,4 +154,13 @@ class Tags(db.Model):
        tag = Tags.query.filter_by(name=tag_name).first()
        if tag: tag_ids.append(tag.id)
      return Tags.has_public(tag_ids)
+
+   def to_audit_log_representation(self):
+       return self.to_dict()
+
+   def get_audit_log_identity_subset(self):
+       return {
+           'id': self.id,
+           'name': self.name,
+       }
 

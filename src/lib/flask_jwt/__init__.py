@@ -15,6 +15,7 @@ from werkzeug.local import LocalProxy
 logger = logging.getLogger(__name__)
 
 current_identity = LocalProxy(lambda: getattr(g, '_flask_jwt_current_identity', None))
+current_jwt = LocalProxy(lambda: getattr(g, '_flask_jwt_current_jwt', None))
 
 _jwt = LocalProxy(lambda: current_app.extensions['jwt'])
 
@@ -155,6 +156,8 @@ def _jwt_required(realm):
 
     if identity is None:
         raise JWTError('Invalid JWT', 'User does not exist')
+
+    g._flask_jwt_current_jwt = token
 
 
 def jwt_required(realm=None):
