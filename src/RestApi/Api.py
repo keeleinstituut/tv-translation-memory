@@ -111,6 +111,8 @@ app.config['JWT_AUTH_HEADER_PREFIX'] = 'Bearer'
 app.keycloak = Keycloak(
     url=G_CONFIG.config['keycloak']['url'],
     realm=G_CONFIG.config['keycloak']['realm'],
+    client_id=G_CONFIG.config['keycloak']['client_id'],
+    client_secret=G_CONFIG.config['keycloak']['client_secret'],
 )
 principal = Principal(app, use_sessions=False)
 jwt_middleware = JWT(app=app, identity_handler=identity)

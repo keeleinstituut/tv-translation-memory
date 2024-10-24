@@ -1,7 +1,7 @@
 import json
 import amqp
 import datetime
-from flask import request
+from flask import request, current_app
 
 from Config.Config import G_CONFIG
 from lib.flask_jwt import current_jwt, current_identity
@@ -25,7 +25,7 @@ class _AuditLogPublisher:
         message = amqp.Message(
             body=json.dumps(audit_log_message),
             application_headers={
-                'jwt': current_jwt,
+                'jwt': current_app.keycloak.get_service_account_jwt(),
             })
         channel.basic_publish(message, routing_key='audit-log-events')
 

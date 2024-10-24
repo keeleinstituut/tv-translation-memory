@@ -40,6 +40,8 @@ rabbitmq:
 keycloak:
   url: ${KEYCLOAK_URL}
   realm: ${KEYCLOAK_REALM}
+  client_id: ${KEYCLOAK_CLIENT_ID}
+  client_secret: ${KEYCLOAK_CLIENT_SECRET}
 
 filescan:
   api-url: ${FILESCAN_API_URL}
