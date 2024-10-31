@@ -18,9 +18,11 @@ class _AuditLogPublisher:
             password=G_CONFIG.config['rabbitmq']['password'],
             exchange='audit-log-events',
             confirm_publish=True)
-        self._connection.connect()
 
     def publish_message(self, audit_log_message):
+        # Ensure connection is open
+        self._connection.connect()
+
         channel = self._connection.channel()
         message = amqp.Message(
             body=json.dumps(audit_log_message),
