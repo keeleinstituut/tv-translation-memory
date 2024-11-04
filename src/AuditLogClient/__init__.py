@@ -1,35 +1,53 @@
 import json
-import amqp
 import datetime
+import logging
+import amqp
+from amqp.exceptions import AMQPError
 from flask import request, current_app
 
 from Config.Config import G_CONFIG
-from lib.flask_jwt import current_jwt, current_identity
+from lib.flask_jwt import current_identity
 
+logger = logging.getLogger(__name__)
 
 class _AuditLogPublisher:
     def __init__(self):
-        self._connection = None
+        self.connection = None
 
-    def init_connection(self):
-        self._connection = amqp.Connection(
-            host=G_CONFIG.config['rabbitmq']['host'] + ':' + G_CONFIG.config['rabbitmq']['port'],
-            userid=G_CONFIG.config['rabbitmq']['user'],
-            password=G_CONFIG.config['rabbitmq']['password'],
-            exchange='audit-log-events',
-            confirm_publish=True)
+    def connect(self):
+        if not self.connection or not self.connection.connected:
+            logger.info("AuditLogClient: Connecting to AMQP")
+            self.connection = amqp.Connection(
+                host=G_CONFIG.config['rabbitmq']['host'] + ':' + G_CONFIG.config['rabbitmq']['port'],
+                userid=G_CONFIG.config['rabbitmq']['user'],
+                password=G_CONFIG.config['rabbitmq']['password'],
+                exchange='audit-log-events',
+                confirm_publish=True)
+            self.connection.connect()
+            logger.info("AuditLogClient: AMQP connection successful")
 
-    def publish_message(self, audit_log_message):
+    def close(self):
+        self.connection.close()
+
+    def publish_message(self, audit_log_message, retry=2):
+        if retry == -1:
+            return
+
         # Ensure connection is open
-        self._connection.connect()
+        self.connect()
 
-        channel = self._connection.channel()
-        message = amqp.Message(
-            body=json.dumps(audit_log_message),
-            application_headers={
-                'jwt': current_app.keycloak.get_service_account_jwt(),
-            })
-        channel.basic_publish(message, routing_key='audit-log-events')
+        try:
+            channel = self.connection.channel()
+            message = amqp.Message(
+                body=json.dumps(audit_log_message),
+                application_headers={
+                    'jwt': current_app.keycloak.get_service_account_jwt(),
+                })
+            channel.basic_publish(message, routing_key='audit-log-events')
+        except (OSError, AMQPError) as e:
+            logger.info("AuditLogClient: Lost connection to AMQP")
+
+            self.publish_message(audit_log_message, retry=retry - 1)
 
 
 class AuditLogMessage:
@@ -74,7 +92,6 @@ class AuditLogMessage:
 
 
 _audit_log_publisher = _AuditLogPublisher()
-_audit_log_publisher.init_connection()
 
 
 def send_audit_log(message):
@@ -82,4 +99,3 @@ def send_audit_log(message):
         _audit_log_publisher.publish_message(message.build())
     else:
         _audit_log_publisher.publish_message(message)
-
