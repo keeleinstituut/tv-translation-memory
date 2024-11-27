@@ -28,6 +28,8 @@ from TMX.TMXWriter import TMXIterWriter
 from Config.Config import G_CONFIG
 
 class TMExport:
+  ALL_FILENAME = 'all.tmx'
+
   def __init__(self, username):
     self.db = TMDbApi()
     self.username = username
@@ -37,7 +39,7 @@ class TMExport:
     export_path = self._get_export_path("." + export_id)
     os.makedirs(export_path, exist_ok=True)
 
-    file_names = self.db.file_names(langs, filters)
+    file_names = [self.ALL_FILENAME, *self.db.file_names(langs, filters)]
 
     # Temporary zip file.
     tmpfile = os.path.join(export_path, "_".join(langs).upper() + '.zip')
@@ -56,8 +58,15 @@ class TMExport:
     def write_iter():
       # Iterate file by file
       for fn in file_names:
-        filters['file_name'] = [fn]
-        for data in writer.write_iter(segment_iter(filters), fn):
+        if fn is self.ALL_FILENAME:
+          segments = segment_iter(filters)
+        else:
+          segments = segment_iter({
+            **filters,
+            'file_name': [fn],
+          })
+
+        for data in writer.write_iter(segments, fn):
           # TODO: in addition, write data to a local file to import it
           # at the end of generation
           yield data
