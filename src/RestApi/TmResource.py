@@ -52,6 +52,7 @@ from TMDbApi.TMExport import TMExport
 from TMDbApi.TMQueryLogger import TMQueryLogger
 
 from TMPreprocessor.Xml.XmlUtils import XmlUtils
+from TMPreprocessor.Xml.TMXmlTagPreprocessor import TMXmlTagPreprocessor
 from TMOutputer.TMOutputerMoses import TMOutputerMoses
 from TMX.TMXParser import TMXParser
 from FileScan import scan_file
@@ -307,8 +308,9 @@ class TmResource(Resource):
 
 
     now_str = TMUtils.date2str(datetime.datetime.now())
-    segment = TMTranslationUnit({'source_text': args.stext,
-                         'target_text': args.ttext,
+    tags_pp = TMXmlTagPreprocessor()
+    segment = TMTranslationUnit({'source_text': tags_pp.process(args.stext),
+                         'target_text': tags_pp.process(args.ttext),
                          'source_language': args.slang,
                          'target_language': args.tlang,
                          'source_metadata': args.smeta,
