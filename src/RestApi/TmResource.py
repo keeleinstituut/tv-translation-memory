@@ -202,7 +202,7 @@ class TmResource(Resource):
             continue
           filtered_tags = UserScopeChecker.filter_domains(self._tag_ids2dict(segment.domain), key_fn=lambda t:t["id"], allow_unspecified=False)
           filtered_tags_ids = [str(t["id"]) for t in filtered_tags]
-          if not filtered_tags_ids or (tag_ids and not set(tag_ids).issubset(set(filtered_tags_ids))):
+          if not filtered_tags_ids or (tag_ids and set(tag_ids).isdisjoint(set(filtered_tags_ids))):
             logging.debug("Filtered out segment from other domains".format(segment.to_dict_short()))
             continue
         else:
