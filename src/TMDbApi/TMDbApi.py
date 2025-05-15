@@ -164,6 +164,7 @@ class TMDbApi:
       self.timer.start("monoling_query")
 
       loopArray = zip(qparams.qlist, qparams.qinfo ,self.ml_index.mquery(qparams.source_lang, qparams.limit, [q_o_tags for q, q_o_tags in q_out_tags], filter = [f for f in dic_filter]))
+
       for q, qinfo ,response in loopArray:
         self.timer.stop("monoling_query")
         out_segments.append((q, self._query(q, qinfo, response, qparams)))  # create new list for current query
@@ -372,6 +373,7 @@ class TMDbApi:
       self.timer.stop("src2tgt")
       self.timer.start("doc2segment")
       count = 0
+
       for map_doc, tgt_doc in zip(map_docs, self.ml_index.mget(target_ids)):
         if not map_doc: continue
         src_hit = src_hits_map[map_doc["source_id"]]

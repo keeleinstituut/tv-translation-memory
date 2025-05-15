@@ -129,13 +129,14 @@ class TMMapES(TMMap):
       search,swap = self._create_search(source_id,source_lang,target_lang)
       if search:
         # Sort by update date so in case of multiple segments having the same source, the latest one will be returned
-        search = search.sort('-update_date')
+        # search = search.sort('-update_date')
         msearch = msearch.add(search)
         search_swap.append(swap)
 
     responses = msearch.execute()
     results = []
     for res,swap in zip(responses,search_swap):
+
       try:
         if not 'hits' in res or not res.hits.total:
           results.append(None)
@@ -322,6 +323,7 @@ class TMMapES(TMMap):
 
     search = self.es.search(index=m_index)
     search.query = Q('term', **{qfield: source_id})
+    search = search.extra(size=1000)
     return search,swap
 
   def _create_search_mindexes(self, source_id, source_lang, target_langs):

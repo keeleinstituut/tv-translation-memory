@@ -114,6 +114,7 @@ class TMMonoLing:
         '_index': TMUtils.lang2es_index(lang),
         '_id' : id
       } for lang,id in ids_lang]
+
     hits = self.es.mget(body={'docs' : body})
     if not hits: return None
     return [hit.get('_source',None) for hit in hits['docs']]
