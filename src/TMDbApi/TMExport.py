@@ -26,6 +26,7 @@ import datetime
 from TMDbApi.TMDbApi import TMDbApi
 from TMX.TMXWriter import TMXIterWriter
 from Config.Config import G_CONFIG
+from RestApi.Models import Tags, app
 
 class TMExport:
   ALL_FILENAME = 'all.tmx'
@@ -38,8 +39,6 @@ class TMExport:
     # Export path will have "." in the beginning to indicate work in progress
     export_path = self._get_export_path("." + export_id)
     os.makedirs(export_path, exist_ok=True)
-
-    file_names = [self.ALL_FILENAME, *self.db.file_names(langs, filters)]
 
     # Temporary zip file.
     tmpfile = os.path.join(export_path, "_".join(langs).upper() + '.zip')
@@ -55,7 +54,19 @@ class TMExport:
         if limit and i > limit: return
         yield s
 
-    def write_iter():
+    def write_iter(segment_iterator):
+      for fn, segments in segment_iterator:
+        for data in writer.write_iter(segments, fn):
+          # TODO: in addition, write data to a local file to import it
+          # at the end of generation
+          yield data
+      # Zip footer
+      for data in writer.write_close():
+        yield data
+
+    def segments_by_file_iter():
+      file_names = [self.ALL_FILENAME, *self.db.file_names(langs, filters)]
+
       # Iterate file by file
       for fn in file_names:
         if fn is self.ALL_FILENAME:
@@ -65,19 +76,20 @@ class TMExport:
             **filters,
             'file_name': [fn],
           })
+        yield fn, segments
 
-        for data in writer.write_iter(segments, fn):
-          # TODO: in addition, write data to a local file to import it
-          # at the end of generation
-          yield data
-      # Zip footer
-      for data in writer.write_close():
-        yield data
+    def single_file_iter():
+      tag_id = filters['domain'][0]
+      tag = self.fetch_tag(tag_id)
+      fn = "{}.tmx".format(tag.name)
+
+      segments = segment_iter(filters)
+      yield fn, segments
 
 
     # Generate zipped TMX file(s)
     of = open(tmpfile, "wb")
-    for d in write_iter():
+    for d in write_iter(single_file_iter()):
       of.write(d)
     # When is done, finalize by renaming export path
     os.rename(export_path, self._get_export_path(export_id))
@@ -97,6 +109,11 @@ class TMExport:
       fdict["size"] = os.path.getsize(f)
       flist.append(fdict)
     return flist
+
+  def fetch_tag(self, tag_id):
+    with app.app_context():
+      tag = Tags.query.get(tag_id)
+    return tag
 
   def delete(self, export_id):
     try:
