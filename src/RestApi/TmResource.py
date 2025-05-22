@@ -211,8 +211,38 @@ class TmResource(Resource):
         if args.out == 'moses':
           moses_qout = TMOutputerMoses().output_segment(segment, match)
           break
-        # Check perfect match
-        if (args.smeta or args.tmeta) and (segment.source_metadata == args.smeta or (not args.smeta and not segment.source_metadata)) and (segment.target_metadata == args.tmeta or (not args.tmeta and not segment.target_metadata)):
+
+        # Check contexts for perfect match (101%)
+        def check_contexts():
+          checks = []
+
+          if not args.smeta and not args.tmeta:
+            return False
+
+          if args.smeta:
+            args_source_before_context = args.smeta.get('context_before', None)
+            args_source_after_context = args.smeta.get('context_after', None)
+            segment_source_before_context = segment.source_metadata.to_dict().get('context_before', None)
+            segment_source_after_context = segment.source_metadata.to_dict().get('context_after', None)
+
+            checks.append(args_source_before_context == segment_source_before_context)
+            checks.append(args_source_after_context == segment_source_after_context)
+
+          if args.tmeta:
+            args_target_before_context = args.tmeta.get('context_before', None)
+            args_target_after_context = args.tmeta.get('context_after', None)
+            segment_target_before_context = segment.target_metadata.to_dict().get('context_before', None)
+            segment_target_after_context = segment.target_metadata.to_dict().get('context_after', None)
+
+            checks.append(args_target_before_context == segment_target_before_context)
+            checks.append(args_target_after_context == segment_target_after_context)
+
+          if not checks:
+            return False
+
+          return all(checks)
+
+        if check_contexts():
           match += 1
           if int(match) > 100:
             r.clear() # Clear all previous results to leave only 101
