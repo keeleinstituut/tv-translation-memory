@@ -125,8 +125,8 @@ class TMMapES(TMMap):
     if not id_langs: return []
     msearch = self.es.multi_search()
     search_swap = []
-    for source_id,source_lang,target_lang in id_langs:
-      search,swap = self._create_search(source_id,source_lang,target_lang)
+    for source_id,source_lang,target_lang,source_metadata,target_metadata in id_langs:
+      search,swap = self._create_search(source_id,source_lang,target_lang,source_metadata,target_metadata)
       if search:
         # Sort by update date so in case of multiple segments having the same source, the latest one will be returned
         # search = search.sort('-update_date')
@@ -316,14 +316,38 @@ class TMMapES(TMMap):
     query = TMDbQuery(es=self.es.es, index=m_index, filter=filter)
     return query,swap
 
-  def _create_search(self, source_id, source_lang, target_lang):
+  def _create_search(self, source_id, source_lang, target_lang, source_metadata=None, target_metadata=None):
     m_index,swap = self._get_index(source_lang, target_lang)
     if not m_index: return None,None
-    qfield = "source_id.keyword" if not swap else "target_id.keyword"
+
+    prefix = "source" if not swap else "target"
+    reverse_prefix = "target" if not swap else "source"
 
     search = self.es.search(index=m_index)
-    search.query = Q('term', **{qfield: source_id})
-    search = search.extra(size=1000)
+
+    def add_filter(key, value):
+      if value is None: return search
+      return search.filter('match_phrase', **{key: value})
+
+    search = add_filter("{}_id.keyword".format(prefix), source_id)
+
+    if source_metadata:
+      search = add_filter('{}_metadata.context_before'.format(prefix), source_metadata.get('context_before'))
+      search = add_filter('{}_metadata.context_after'.format(prefix), source_metadata.get('context_after'))
+    if target_metadata:
+      search = add_filter('{}_metadata.context_before'.format(reverse_prefix), target_metadata.get('context_before'))
+      search = add_filter('{}_metadata.context_after'.format(reverse_prefix), target_metadata.get('context_after'))
+
+
+    print("SEARCH")
+    print("SEARCH")
+    print("SEARCH")
+    print("SEARCH")
+    print(search.to_dict())
+    print("SEARCH")
+    print("SEARCH")
+    print("SEARCH")
+    print("SEARCH")
     return search,swap
 
   def _create_search_mindexes(self, source_id, source_lang, target_langs):

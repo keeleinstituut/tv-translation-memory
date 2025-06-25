@@ -187,7 +187,31 @@ class TmResource(Resource):
                             aut_trans=args.aut_trans,
                             exact_length=False)
 
-    for _q, results in zip(qlist, self.db.query(qparams)):
+    qparams101 = qparams.copy()
+    qparams101.min_match = 100
+    qparams101.source_metadata = args.smeta
+    qparams101.target_metadata = args.tmeta
+
+    result101 = self.db.query(qparams101)
+
+    print("101 RESULT")
+    print("101 RESULT")
+    print("101 RESULT")
+    print("101 RESULT")
+    print("101 RESULT")
+    print("101 RESULT")
+    print(result101)
+    print("101 RESULT")
+    print("101 RESULT")
+    print("101 RESULT")
+    print("101 RESULT")
+    print("101 RESULT")
+    print("101 RESULT")
+    print("101 RESULT")
+
+    result = result101 if result101 else self.db.query(qparams)
+
+    for _q, results in zip(qlist, result):
       moses_qout = _q.encode('utf-8')
       count = 0
       r = []
