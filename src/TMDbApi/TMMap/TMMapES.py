@@ -338,16 +338,6 @@ class TMMapES(TMMap):
       search = add_filter('{}_metadata.context_before'.format(reverse_prefix), target_metadata.get('context_before'))
       search = add_filter('{}_metadata.context_after'.format(reverse_prefix), target_metadata.get('context_after'))
 
-
-    print("SEARCH")
-    print("SEARCH")
-    print("SEARCH")
-    print("SEARCH")
-    print(search.to_dict())
-    print("SEARCH")
-    print("SEARCH")
-    print("SEARCH")
-    print("SEARCH")
     return search,swap
 
   def _create_search_mindexes(self, source_id, source_lang, target_langs):
