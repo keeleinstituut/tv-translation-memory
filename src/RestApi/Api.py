@@ -40,6 +40,10 @@ sys.path = [p for p in sys.path if p]
 import logging
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', level=logging.INFO)
 
+# Limit logging
+log = logging.getLogger()
+log.setLevel(logging.ERROR)
+
 from flask_restful import Api
 from flask_principal import Principal
 from lib.flask_jwt import JWT
@@ -47,6 +51,7 @@ from lib.flask_jwt import JWT
 from Config.Config import G_CONFIG
 from RestApi.Models import db, app
 from RestApi.Keycloak import Keycloak
+from helpers.AuditContext import current_auditlog_action
 
 app.config['SECRET_KEY'] = 'super-secret'
 app.config['VERSION'] = 1
@@ -117,6 +122,11 @@ app.keycloak = Keycloak(
 principal = Principal(app, use_sessions=False)
 jwt_middleware = JWT(app=app, identity_handler=identity)
 jwt_middleware.jwt_decode_handler(decode_handler)
+
+@app.after_request
+def append_auditlog_action_header(response):
+    response.headers['X-Log-Action'] = str(current_auditlog_action)
+    return response
 
 # Admin UI
 # from RestApi.AdminUi.AdminUi import admin_ui

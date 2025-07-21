@@ -1,0 +1,20 @@
+
+stages:
+  - build
+
+build:
+  stage: build
+  image: docker
+  services:
+    - docker:dind
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+    IMAGE_LATEST: $CI_REGISTRY_IMAGE:latest
+    DOCKER_CONTEXT: ./
+    DOCKERFILE_PATH: ./Dockerfile
+  script:
+    - echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - docker build $DOCKER_CONTEXT -f $DOCKERFILE_PATH -t $IMAGE
+    - docker image tag $IMAGE $IMAGE_LATEST
+    - docker push $IMAGE
+    - docker push $IMAGE_LATEST

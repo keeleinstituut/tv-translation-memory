@@ -55,4 +55,15 @@ class TMTranslationUnit:
     return dict([(a, getattr(self, a)) for a in self.attributes])
 
   def to_dict_short(self):
-    return dict([(a, getattr(self, a)) for a in ['source_text', 'target_text', 'source_metadata', 'target_metadata'] if getattr(self, a)])
+    return {
+        'source_text': getattr(self, 'source_text', None),
+        'target_text': getattr(self, 'target_text', None),
+        'source_metadata': self._metadata_to_dict(getattr(self, 'source_metadata', None)),
+        'target_metadata': self._metadata_to_dict(getattr(self, 'target_metadata', None)),
+    }
+
+  def _metadata_to_dict(self, metadata):
+      return metadata.to_dict() if metadata else None
+
+  def __repr__(self):
+      return repr(self.to_dict_short())

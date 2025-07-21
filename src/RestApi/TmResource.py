@@ -59,6 +59,7 @@ from FileScan import scan_file
 
 from JobApi.ESJobApi import ESJobApi
 from RestApi.Models import Tags
+from helpers.AuditContext import set_current_auditlog_action
 
 
 # Search/update/delete segments
@@ -141,6 +142,7 @@ class TmResource(Resource):
   """
   @PermissionChecker(view_tm_permission)
   def get(self):
+    set_current_auditlog_action('translation-memory.tm.search')
     args = self._get_reqparse().parse_args()
     sl = self._detect_lang(args)
     if not sl: return {"message": "Couldn't detect source language. Provide it via 'slang' parameter"}
@@ -187,7 +189,16 @@ class TmResource(Resource):
                             aut_trans=args.aut_trans,
                             exact_length=False)
 
-    for _q, results in zip(qlist, self.db.query(qparams)):
+    qparams101 = qparams.copy()
+    qparams101.min_match = 100
+    qparams101.source_metadata = args.smeta
+    qparams101.target_metadata = args.tmeta
+
+    result101 = self.db.query(qparams101)
+
+    result = result101 if result101 else self.db.query(qparams)
+
+    for _q, results in zip(qlist, result):
       moses_qout = _q.encode('utf-8')
       count = 0
       r = []
@@ -211,8 +222,38 @@ class TmResource(Resource):
         if args.out == 'moses':
           moses_qout = TMOutputerMoses().output_segment(segment, match)
           break
-        # Check perfect match
-        if (args.smeta or args.tmeta) and (segment.source_metadata == args.smeta or (not args.smeta and not segment.source_metadata)) and (segment.target_metadata == args.tmeta or (not args.tmeta and not segment.target_metadata)):
+
+        # Check contexts for perfect match (101%)
+        def check_contexts():
+          checks = []
+
+          if not args.smeta and not args.tmeta:
+            return False
+
+          if args.smeta:
+            args_source_before_context = args.smeta.get('context_before', None)
+            args_source_after_context = args.smeta.get('context_after', None)
+            segment_source_before_context = segment.source_metadata.to_dict().get('context_before', None)
+            segment_source_after_context = segment.source_metadata.to_dict().get('context_after', None)
+
+            checks.append(args_source_before_context == segment_source_before_context)
+            checks.append(args_source_after_context == segment_source_after_context)
+
+          if args.tmeta:
+            args_target_before_context = args.tmeta.get('context_before', None)
+            args_target_after_context = args.tmeta.get('context_after', None)
+            segment_target_before_context = segment.target_metadata.to_dict().get('context_before', None)
+            segment_target_after_context = segment.target_metadata.to_dict().get('context_after', None)
+
+            checks.append(args_target_before_context == segment_target_before_context)
+            checks.append(args_target_after_context == segment_target_after_context)
+
+          if not checks:
+            return False
+
+          return all(checks)
+
+        if check_contexts():
           match += 1
           if int(match) > 100:
             r.clear() # Clear all previous results to leave only 101
@@ -291,6 +332,7 @@ class TmResource(Resource):
   """
   @PermissionChecker(import_tm_permission)
   def post(self):
+    set_current_auditlog_action('translation-memory.tm.store')
     args = self._post_reqparse().parse_args()
 
     tag_ids = args.tag if args.tag else args.domain # backward compatibility fallback
@@ -374,6 +416,7 @@ class TmResource(Resource):
     """
   @PermissionChecker(delete_tm_permission)
   def delete(self):
+    set_current_auditlog_action('translation-memory.tm.destroy')
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
@@ -529,6 +572,7 @@ class TmBatchQueryResource(TmResource):
    @apiSuccess {String/Json} Translation units matching the query
   """
   def get(self):
+    set_current_auditlog_action('translation-memory.tm.bulk-search')
     args = self._get_reqparse().parse_args()
     #filters = self._args2filter(args)
     # Check user scope
@@ -581,6 +625,7 @@ class TmImportResource(TmResource):
     -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
    """
   def put(self):
+    set_current_auditlog_action('translation-memory.tm.import')
     args = self._put_reqparse()
     # Check tag existence
     tag_ids = args.tag
@@ -680,6 +725,7 @@ class TmExportResource(TmResource):
 
 
   def post(self):
+    set_current_auditlog_action('translation-memory.tm.export')
     # print("USER PERM : {}".format(user_permission.can()))
     args = self._get_reqparse().parse_args()
     filters = self._args2filter(args)
@@ -775,6 +821,7 @@ class TmExportFileResource(TmResource):
    -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU' -X GET
   """
   def get(self, export_id=None):
+    set_current_auditlog_action('translation-memory.tm.export-download')
     export = TMExport(current_identity.id)
     # If specific ID was requested -> download it
     if export_id:
@@ -816,6 +863,7 @@ class TmExportFileResource(TmResource):
    -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU' -X GET
   """
   def delete(self, export_id):
+    set_current_auditlog_action('translation-memory.tm.export-destroy')
     export = TMExport(current_identity.id)
     export.delete(export_id)
     return {"message": "success"}
@@ -846,6 +894,7 @@ class TmGenerateResource(TmResource):
     -X PUT -H 'Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NjQ2MTU0NDUsImlkZW50aXR5IjoxLCJleHAiOjE0NjQ3MDE4NDUsIm5iZiI6MTQ2NDYxNTQ0NX0.j_p4a-NUG-6zu3Zh4_d1d0C5fkiTy-eJcVyyT1z2IfU'
    """
   def put(self):
+    set_current_auditlog_action('translation-memory.tm.generate')
     args = self._put_reqparse()
     args.tag = [d for d in args.tag if d] # filter empty values
     filter = {'domain' : args.tag} if args.tag else {}
@@ -907,6 +956,7 @@ class TmPosTagResource(TmResource):
   decorators = [PermissionChecker(admin_permission)]
 
   def post(self):
+    set_current_auditlog_action('translation-memory.tm.pos-tag')
     args = self._put_pos_reqparse()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
@@ -945,6 +995,7 @@ class TmMaintainResource(TmResource):
   decorators = [PermissionChecker(admin_permission)]
 
   def post(self):
+    set_current_auditlog_action('translation-memory.tm.maintain')
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
@@ -973,6 +1024,7 @@ class TmCleanResource(TmResource):
   decorators = [PermissionChecker(admin_permission)]
 
   def post(self):
+    set_current_auditlog_action('translation-memory.tm.clean')
     args = self._common_reqparse().parse_args()
     filters = self._args2filter(args)
     # Setup a job using Celery & ES
@@ -995,6 +1047,7 @@ class TmStatsResource(TmResource):
   decorators = [PermissionChecker(view_tm_permission)]
 
   def get(self):
+    set_current_auditlog_action('translation-memory.tm.stats')
     args = self._reqparse()
     stats = self.db.mstats()
     lps = dict()
@@ -1082,6 +1135,7 @@ class TmUsageStatsResource(TmResource):
   decorators = [PermissionChecker(admin_permission)]
 
   def get(self):
+    set_current_auditlog_action('translation-memory.tm.usage')
     stats =  self.qlogger.stats()
     # For regular user, just return language pair stats
     if current_identity.role == 'user':
