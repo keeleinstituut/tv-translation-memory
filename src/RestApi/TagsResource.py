@@ -32,6 +32,7 @@ from lib.flask_jwt import current_identity, jwt_required
 from RestApi.Models import Tags, CRUD
 from Auth import admin_permission, PermissionChecker, UserScopeChecker, view_tag_permission, create_tag_permission, delete_tag_permission, sso_realm_create_tm_permission, edit_tag_permission
 from TMPreprocessor.TMRegExpPreprocessor import TMRegExpPreprocessor
+from helpers.AuditContext import set_current_auditlog_action
 
 class TagsResource(Resource):
   decorators = [jwt_required()]
@@ -53,6 +54,8 @@ class TagsResource(Resource):
   """
   @PermissionChecker(view_tag_permission)
   def get(self, tag_id=None):
+    set_current_auditlog_action('translation-memory.tags.show' if tag_id else 'translation-memory.tags.index')
+
     args = self._get_reqparse()
 
     tags = []
@@ -143,6 +146,7 @@ class TagsResource(Resource):
   """
   def post(self, tag_id=None):
     args = self._reqparse(tag_id)
+    set_current_auditlog_action('translation-memory.tags.create')
 
     if tag_id:
       edit_tag_permission.test(http_exception=403)
@@ -237,6 +241,7 @@ class TagsResource(Resource):
   """
   @PermissionChecker(delete_tag_permission)
   def delete(self, tag_id):
+    set_current_auditlog_action('translation-memory.tags.destroy')
     tag = Tags.query.get(tag_id)
 
     tags = UserScopeChecker.filter_domains([tag], key_fn=lambda t: t["id"])

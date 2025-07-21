@@ -29,6 +29,7 @@ from Auth import admin_permission
 from RestApi.Celery import job_kill_task
 from JobApi.ESJobApi import ESJobApi
 from RestApi.Auth import ADMIN, PermissionChecker
+from helpers.AuditContext import set_current_auditlog_action
 
 
 class JobsResource(Resource):
@@ -54,6 +55,7 @@ class JobsResource(Resource):
   # TODO: accept limit as a parameter
   @PermissionChecker(admin_permission)
   def get(self, job_id=None):
+    set_current_auditlog_action('translation-memory.jobs.show' if job_id else 'translation-memory.jobs.index')
     args = self._get_reqparse()
     jobs = []
     username_filter = current_identity.id if current_identity.role != ADMIN else None
@@ -90,6 +92,7 @@ class JobsResource(Resource):
   """
   @PermissionChecker(admin_permission)
   def delete(self, job_id):
+    set_current_auditlog_action('translation-memory.jobs.destroy')
     # Setup a job using Celery & ES
     task = job_kill_task.apply_async([job_id])
     return {"job_id": task.id, "message": "Job submitted successfully"}

@@ -64,3 +64,6 @@ class TMTranslationUnit:
 
   def _metadata_to_dict(self, metadata):
       return metadata.to_dict() if metadata else None
+
+  def __repr__(self):
+      return repr(self.to_dict_short())
