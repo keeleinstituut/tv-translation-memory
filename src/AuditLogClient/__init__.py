@@ -95,7 +95,8 @@ _audit_log_publisher = _AuditLogPublisher()
 
 
 def send_audit_log(message):
-    if isinstance(message, AuditLogMessage):
-        _audit_log_publisher.publish_message(message.build())
-    else:
-        _audit_log_publisher.publish_message(message)
+    # if isinstance(message, AuditLogMessage):
+    #     _audit_log_publisher.publish_message(message.build())
+    # else:
+    #     _audit_log_publisher.publish_message(message)
+    return
