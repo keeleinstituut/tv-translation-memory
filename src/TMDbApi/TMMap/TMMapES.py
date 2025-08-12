@@ -125,8 +125,8 @@ class TMMapES(TMMap):
     if not id_langs: return []
     msearch = self.es.multi_search()
     search_swap = []
-    for source_id,source_lang,target_lang,source_metadata,target_metadata in id_langs:
-      search,swap = self._create_search(source_id,source_lang,target_lang,source_metadata,target_metadata)
+    for source_id,source_lang,target_lang,source_metadata,target_metadata,domains in id_langs:
+      search,swap = self._create_search(source_id,source_lang,target_lang,source_metadata,target_metadata,domains)
       if search:
         # Sort by update date so in case of multiple segments having the same source, the latest one will be returned
         # search = search.sort('-update_date')
@@ -316,7 +316,7 @@ class TMMapES(TMMap):
     query = TMDbQuery(es=self.es.es, index=m_index, filter=filter)
     return query,swap
 
-  def _create_search(self, source_id, source_lang, target_lang, source_metadata=None, target_metadata=None):
+  def _create_search(self, source_id, source_lang, target_lang, source_metadata=None, target_metadata=None, domains=None):
     m_index,swap = self._get_index(source_lang, target_lang)
     if not m_index: return None,None
 
@@ -337,6 +337,11 @@ class TMMapES(TMMap):
     if target_metadata:
       search = add_filter('{}_metadata.context_before'.format(reverse_prefix), target_metadata.get('context_before'))
       search = add_filter('{}_metadata.context_after'.format(reverse_prefix), target_metadata.get('context_after'))
+
+    if domains:
+      search = search.filter('terms', **{
+        'domain.keyword': domains
+      })
 
     return search,swap
 

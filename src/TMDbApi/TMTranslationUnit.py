@@ -33,7 +33,7 @@ class TMTranslationUnit:
                 'tuid', 'dirty_score', 'username',
                 'industry', 'type', 'file_name', 'domain', 'organization',
                 'tm_creation_date', 'tm_change_date',
-                'insert_date', 'update_date', 'check_date', 'check_version']
+                'insert_date', 'update_date', 'check_date', 'check_version', '_id']
   def __init__(self, sdict={}):
     self.reset(sdict)
 
@@ -56,6 +56,8 @@ class TMTranslationUnit:
 
   def to_dict_short(self):
     return {
+        '_id': getattr(self, '_id', None),
+        'domain': getattr(self, 'domain', None),
         'source_text': getattr(self, 'source_text', None),
         'target_text': getattr(self, 'target_text', None),
         'source_metadata': self._metadata_to_dict(getattr(self, 'source_metadata', None)),
