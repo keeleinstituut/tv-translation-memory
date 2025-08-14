@@ -163,7 +163,9 @@ class TMDbApi:
       # Query source ES for the text
       self.timer.start("monoling_query")
 
-      loopArray = zip(qparams.qlist, qparams.qinfo ,self.ml_index.mquery(qparams.source_lang, qparams.limit, [q_o_tags for q, q_o_tags in q_out_tags], filter = [f for f in dic_filter]))
+      monoling_response = list(self.ml_index.mquery(qparams.source_lang, qparams.limit, [q_o_tags for q, q_o_tags in q_out_tags], filter = [f for f in dic_filter]))
+
+      loopArray = zip(qparams.qlist, qparams.qinfo, monoling_response)
 
       for q, qinfo ,response in loopArray:
         self.timer.stop("monoling_query")
@@ -360,7 +362,7 @@ class TMDbApi:
     self.timer.start("src2tgt")
     map_docs = None
     try:
-      map_docs = self._msrc_id2tgt_id(src_hits, qparams.source_lang, qparams.target_lang, return_multiple=True, source_metadata=qparams.source_metadata, target_metadata=qparams.target_metadata)
+      map_docs = self._msrc_id2tgt_id(src_hits, qparams.source_lang, qparams.target_lang, return_multiple=True, source_metadata=qparams.source_metadata, target_metadata=qparams.target_metadata, domains=qparams.domains)
     except ValueError:
       logging.info("Unsupported index for target: {}".format(qparams.target_lang))
       #if not map_docs: raise (ValueError("Unsupported index for target: {}".format(target_lang)))
@@ -496,8 +498,8 @@ class TMDbApi:
       assert isinstance(target_id, uuid.UUID)
     return target_id,map_doc
 
-  def _msrc_id2tgt_id(self, src_hits, source_lang, target_lang, return_multiple=False, source_metadata=None, target_metadata=None):
-    margs = [(uuid.UUID(src_hit.meta.id), source_lang, target_lang, source_metadata, target_metadata) for src_hit in src_hits]
+  def _msrc_id2tgt_id(self, src_hits, source_lang, target_lang, return_multiple=False, source_metadata=None, target_metadata=None, domains=None):
+    margs = [(uuid.UUID(src_hit.meta.id), source_lang, target_lang, source_metadata, target_metadata, domains) for src_hit in src_hits]
     return self.seg_map.mget(margs, return_multiple=return_multiple)
 
   def _delete(self, langs, docs, filter, force_delete):

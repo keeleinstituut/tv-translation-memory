@@ -194,16 +194,18 @@ class TmResource(Resource):
     qparams101.source_metadata = args.smeta
     qparams101.target_metadata = args.tmeta
 
-    result101 = self.db.query(qparams101)
+    query_results101 = self.db.query(qparams101)
+    query_results_normal = self.db.query(qparams)
 
-    result = result101 if result101 else self.db.query(qparams)
-
-    for _q, results in zip(qlist, result):
+    for _q, results, results101 in zip(qlist, query_results_normal, query_results101):
       moses_qout = _q.encode('utf-8')
       count = 0
       r = []
       t = []
-      qresults = results[0] if len(results) else []
+
+      # Process 101 an normal results together
+      qresults = [*results101[0], *results[0]]
+
       for (segment,match) in qresults:
         if segment.domain:
           if Tags.has_public(segment.domain):
