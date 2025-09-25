@@ -23,6 +23,7 @@
 #
 import tempfile, os, glob, shutil
 import datetime
+import copy
 from TMDbApi.TMDbApi import TMDbApi
 from TMX.TMXWriter import TMXIterWriter
 from Config.Config import G_CONFIG
@@ -64,7 +65,7 @@ class TMExport:
       for data in writer.write_close():
         yield data
 
-    def segments_by_file_iter():
+    def by_file_name_iter():
       file_names = [self.ALL_FILENAME, *self.db.file_names(langs, filters)]
 
       # Iterate file by file
@@ -78,18 +79,27 @@ class TMExport:
           })
         yield fn, segments
 
-    def single_file_iter():
-      tag_id = filters['domain'][0]
-      tag = self.fetch_tag(tag_id)
-      fn = "{}.tmx".format(tag.name)
+    def by_tag_iter():
+      for tag_id in filters['domain']:
+        filters_single_tag = copy.deepcopy(filters)
+        filters_single_tag['domain'] = [tag_id]
+        tag = self.fetch_tag(tag_id)
+        fn = "{}.tmx".format(tag.name)
 
+        segments = segment_iter(filters_single_tag)
+        yield fn, segments
+
+    def combined_iter():
+      fn = "combined.tmx"
       segments = segment_iter(filters)
       yield fn, segments
 
 
+    iter_function = combined_iter if len(list(filters['domain'])) > 1 else by_tag_iter
+
     # Generate zipped TMX file(s)
     of = open(tmpfile, "wb")
-    for d in write_iter(single_file_iter()):
+    for d in write_iter(iter_function()):
       of.write(d)
     # When is done, finalize by renaming export path
     os.rename(export_path, self._get_export_path(export_id))
