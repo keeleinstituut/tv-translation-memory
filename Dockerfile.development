@@ -1,6 +1,6 @@
 # syntax = docker/dockerfile:1.4.0
 
-FROM docker.io/bitnami/spark:3.4 as spark
+FROM docker.io/bitnamilegacy/spark:3.4 as spark
 
 FROM node:latest as node
 
