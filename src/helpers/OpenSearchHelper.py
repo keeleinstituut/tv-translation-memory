@@ -31,6 +31,8 @@ class OpenSearchHelper:
             "retry_on_timeout": True,
             "use_ssl": use_ssl,
             "verify_certs": verify_certs,
+            "ssl_show_warn": verify_certs,
+            "ssl_assert_hostname": verify_certs,
         }
 
         if user or password:
