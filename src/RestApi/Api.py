@@ -41,8 +41,8 @@ import logging
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', level=logging.INFO)
 
 # Limit logging
-log = logging.getLogger()
-log.setLevel(logging.ERROR)
+# log = logging.getLogger()
+# log.setLevel(logging.ERROR)
 
 from flask_restful import Api
 from flask_principal import Principal
