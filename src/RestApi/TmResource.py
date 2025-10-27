@@ -232,7 +232,7 @@ class TmResource(Resource):
           if not args.smeta and not args.tmeta:
             return False
 
-          if args.smeta:
+          if args.smeta and segment.source_metadata:
             args_source_before_context = args.smeta.get('context_before', None)
             args_source_after_context = args.smeta.get('context_after', None)
             segment_source_before_context = segment.source_metadata.to_dict().get('context_before', None)
@@ -241,7 +241,7 @@ class TmResource(Resource):
             checks.append(args_source_before_context == segment_source_before_context)
             checks.append(args_source_after_context == segment_source_after_context)
 
-          if args.tmeta:
+          if args.tmeta and segment.target_metadata:
             args_target_before_context = args.tmeta.get('context_before', None)
             args_target_after_context = args.tmeta.get('context_after', None)
             segment_target_before_context = segment.target_metadata.to_dict().get('context_before', None)
