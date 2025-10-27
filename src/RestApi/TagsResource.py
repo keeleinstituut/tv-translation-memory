@@ -66,7 +66,7 @@ class TagsResource(Resource):
       else:
         abort(404, message="Tag {} doesn't exist".format(tag_id))
     else:
-        tags = [tag.to_dict() for tag in Tags.query.all()]
+        tags = [tag.to_dict() for tag in Tags.query.order_by(Tags.name.asc()).all()]
 
     # Filter scopes according to permissions
     tags = UserScopeChecker.filter_domains(tags, key_fn=lambda t: t["id"])

@@ -40,9 +40,9 @@ sys.path = [p for p in sys.path if p]
 import logging
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', level=logging.INFO)
 
-# Limit logging
-# log = logging.getLogger()
-# log.setLevel(logging.ERROR)
+# Configure logging
+log = logging.getLogger()
+log.setLevel(logging.ERROR)
 
 from flask_restful import Api
 from flask_principal import Principal
