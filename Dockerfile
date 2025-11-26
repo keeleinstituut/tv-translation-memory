@@ -166,6 +166,7 @@ command=gunicorn
           --workers $GUNICORN_WORKERS
           --capture-output
           --log-level INFO
+          --access-logfile '-'
           RestApi.Api:app
 
 [program:celery]

@@ -40,7 +40,7 @@ sys.path = [p for p in sys.path if p]
 import logging
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', level=logging.INFO)
 
-# Limit logging
+# Configure logging
 log = logging.getLogger()
 log.setLevel(logging.ERROR)
 
@@ -77,6 +77,7 @@ from RestApi.TmResource import TmResource, TmBatchQueryResource, TmImportResourc
                                 TmCleanResource, TmStatsResource, TmUsageStatsResource
 from RestApi.JobsResource import JobsResource
 from RestApi.TagsResource import TagsResource
+from RestApi.ContentChecksResource import ContentChecksResource
 
 from flask_cors import CORS
 CORS(app)
@@ -106,6 +107,10 @@ api.add_resource(JobsResource, api_prefix + '/jobs', api_prefix + '/jobs/<string
 # Tags (domains)
 api.add_resource(TagsResource, api_prefix + '/tags',
                                 api_prefix + '/tags/<uuid:tag_id>')
+
+# Content checks (background jobs for checking content of translation memory)
+api.add_resource(ContentChecksResource, api_prefix + '/content-checks',
+                                api_prefix + '/content-checks/<uuid:content_check_id>')
 
 @app.route('/healthz')
 def healthz():

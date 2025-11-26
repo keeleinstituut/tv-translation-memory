@@ -68,3 +68,8 @@ def tm_clean_task(self):
 def job_kill_task(self, job_id):
     SparkTaskDispatcher().run(job_id, 'KillTask')
     return {'status': 'Task completed!'}
+
+@main_celery.task(bind=True)
+def content_check_task(self):
+    SparkTaskDispatcher().run(self.request.id, 'ContentCheck')
+    return {'status': 'Task completed!'}
