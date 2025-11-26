@@ -65,6 +65,9 @@ class TMTranslationUnit:
     }
 
   def _metadata_to_dict(self, metadata):
+      if isinstance(metadata, dict):
+        return metadata
+
       return metadata.to_dict() if metadata else None
 
   def __repr__(self):
