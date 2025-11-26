@@ -164,3 +164,35 @@ class Tags(db.Model):
            'name': self.name,
        }
 
+
+
+class ContentChecks(db.Model):
+  STATUS_WAITING = 'waiting'
+  STATUS_RUNNING = 'running'
+  STATUS_DONE = 'done'
+  STATUS_FAILURE = 'failure'
+
+
+  id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
+
+  tag_id = db.Column(db.Uuid)
+
+  status = db.Column(db.String, default='waiting')
+
+  segments_count = db.Column(db.BigInteger)
+  segments_checked_count = db.Column(db.BigInteger)
+  segments_passed_count = db.Column(db.BigInteger)
+  segments_failed_count = db.Column(db.BigInteger)
+
+  finished_at = db.Column(db.DateTime)
+  created_at = db.Column(db.DateTime, default=sql.func.now())
+
+  # name = db.Column(db.Text)
+  # type = db.Column(db.Text)
+  # comment = db.Column(db.Text)
+  # lang_pair = db.Column(db.Text)
+  # tv_domain = db.Column(db.Text)
+  # tv_tags = db.Column(db.ARRAY(db.String))
+
+  def to_dict(self):
+    return CRUD.to_dict(self)
