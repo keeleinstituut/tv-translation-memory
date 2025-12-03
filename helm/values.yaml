@@ -96,6 +96,3 @@ extraEnvVarsCM: ""
 ## @param extraEnvVarsSecret Name of existing Secret containing extra env vars
 ##
 extraEnvVarsSecret: ""
-
-tv_anonymise_api_service:
-  fullnameOverride: tv-tm-anonymize-api-service
