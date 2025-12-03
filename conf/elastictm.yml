@@ -46,6 +46,9 @@ keycloak:
 filescan:
   api-url: ${FILESCAN_API_URL}
 
+anonymiser:
+  url: ${ANONYMISER_URL}
+
 query:
     #Penalize match if segment doesn't belong to requested domain or it is a dirty segment
     p_domain: 5
