@@ -3,11 +3,12 @@ import json
 from urllib.error import URLError
 import urllib.request
 import requests
+from Config.Config import G_CONFIG
 
 
 class BuerokrattAnonymizerClient:
     def __init__(self):
-        self.baseurl = 'http://host.docker.internal:7001'
+        self.baseurl = G_CONFIG.config['anonymiser']['url']
         self.timeout = 30
         self.ssl_context = None
 
