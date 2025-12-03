@@ -97,5 +97,5 @@ extraEnvVarsCM: ""
 ##
 extraEnvVarsSecret: ""
 
-tv-anonymise-api-service:
+tv_anonymise_api_service:
   fullnameOverride: tv-tm-anonymize-api-service

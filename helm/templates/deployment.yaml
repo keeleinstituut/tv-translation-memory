@@ -49,7 +49,7 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
             - name: ANONYMISER_URL
-              value: http://{{ .Values.tv-anonymise-api-service.fullNameOverride }}.{{ .Release.Namespace }}.svc.cluster.local:80
+              value: http://{{ .Values.tv_anonymise_api_service.fullNameOverride }}.{{ .Release.Namespace }}.svc.cluster.local:80
           {{- if .Values.extraEnvVars }}
             {{- include "common.tplvalues.render" (dict "value" .Values.extraEnvVars "context" $) | nindent 12 }}
           {{- end }}
