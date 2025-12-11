@@ -123,8 +123,8 @@ class ContentChecksResource(Resource):
 
     CRUD.add(content_check)
 
-    # task = content_check_task.apply_async()
-    # self.job_api.init_job(job_id=task.id, username=current_identity.id, type='content_check', content_check_id=content_check.id)
+    task = content_check_task.apply_async()
+    self.job_api.init_job(job_id=task.id, username=current_identity.id, type='content_check', content_check_id=content_check.id)
 
     return {
       "message": "Content check {} started successfully".format(content_check.id),
