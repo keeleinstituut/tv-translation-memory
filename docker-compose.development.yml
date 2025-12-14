@@ -26,8 +26,9 @@ services:
       - KEYCLOAK_REALM=tolkevarav-dev
       - FILESCAN_API_URL=http://host.docker.internal:8010/api
     ports:
-      - 5000:5000
+      - 5002:5000
     volumes:
       - ./src:/opt/elastictm/src
       - ./conf:/opt/elastictm/conf
       - ./requirements.txt:/opt/elastictm/requirements.txt
+      - ./test:/opt/elastictm/test

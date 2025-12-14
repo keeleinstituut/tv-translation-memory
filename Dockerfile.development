@@ -113,7 +113,7 @@ RUN if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
     fi
 
 # Download universal POS tagset
-RUN python -m nltk.downloader -d /usr/share/nltk_data universal_tagset stopwords punkt
+RUN python -m nltk.downloader -d /usr/share/nltk_data universal_tagset stopwords punkt_tab
 
 # Copy universal tag map to NTLK data directory
 COPY tools/universal-pos-tags-master/*-treetagger-pg.map /usr/share/nltk_data/taggers/universal_tagset/
