@@ -32,7 +32,8 @@ psycopg2==2.9.9
 pexpect==4.9.0
 microsofttranslator==0.8
 cmreshandler==1.0.0
-numpy<2.0
+numpy<1.20
+theano==1.0.5
 pytensor>=2.19.0
 gunicorn==22.0.0
 opensearch-dsl==2.1.0
