@@ -86,9 +86,14 @@ RUN tar -xzf kytea-0.4.7.tar.gz && \
     cd .. && \
     rm -rf kytea-0.4.7 kytea-0.4.7.tar.gz
 
+WORKDIR $ELASTICTM
+
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Download, build and install Mykytea-python from source
-# Note: For ARM, this is required. For other architectures, we build from source
-# to ensure Mykytea module is properly installed (pip package kytea may not work correctly)
+# This is required for ARM (see https://github.com/chezou/Mykytea-python/pull/24)
+# For other architectures, we build from source after pip install to ensure
+# the Mykytea module is properly installed (pip package kytea may not work correctly)
 WORKDIR /tmp/Mykytea-python
 RUN git clone https://github.com/chezou/Mykytea-python.git . && \
     git checkout 3a2818e && \
@@ -105,9 +110,6 @@ RUN git clone https://github.com/cservan/tercpp.git && \
     rm -rf tercpp
 
 WORKDIR $ELASTICTM
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
 
 # Download universal POS tagset
 RUN python -m nltk.downloader -d /usr/share/nltk_data universal_tagset stopwords punkt
@@ -126,6 +128,16 @@ RUN apt-get purge -y \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Set proper ownership and permissions for www-data user
+# Application files need to be owned by www-data so gunicorn/celery can access them
+RUN chown -R www-data:www-data $ELASTICTM
+
+# Ensure Spark directory is readable by www-data
+RUN chmod -R o+rX $SPARK_HOME
+
+# Ensure NLTK data is readable by www-data
+RUN chmod -R o+rX /usr/share/nltk_data
 
 # Configure supervisor
 RUN sed -i 's/^\(\[supervisord\]\)$/\1\nnodaemon=true/' /etc/supervisor/supervisord.conf
