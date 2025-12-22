@@ -1,13 +1,62 @@
-/.git/
+# Test files
+test/
+*.test.py
+*_test.py
+test_*.py
+
+# Data files (not needed at runtime)
+data/
+
+# Documentation files
+*.md
+!README.md
+
+# Git files
+.git/
 .gitignore
+.gitattributes
+
+# Build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker files (except the one being built)
+Dockerfile.development
+docker-compose*.yml
+
+# Analysis and migration documents
+*_ANALYSIS.md
+*_SUMMARY.md
+*_COMPLETE.md
+*_REPORT.md
+*_INVENTORY.md
+*_MIGRATION*.md
+*_UPGRADE*.md
+*_EVALUATION.md
+*_RESULTS.md
+
+# Helm charts (not needed in image)
+helm/
+
+# Scripts (not needed at runtime)
+scripts/
+
+# License and other non-runtime files
 LICENSE
-README.md
-/test/
-/helm/
-/doc/
-/data/
-/venv/
-.dockerignore
-.env
-.env.example
-Dockerfile*
+apache-2.tmpl

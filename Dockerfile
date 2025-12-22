@@ -2,15 +2,16 @@
 
 FROM docker.io/bitnamilegacy/spark:3.4 as spark
 
+# Node stage: Only copy files needed for API doc generation
 FROM node:latest as node
 
-COPY . /app
+COPY src/RestApi /app/src/RestApi
 RUN npm install apidoc -g
 
 WORKDIR /app/src/RestApi
 RUN apidoc -i . -o ../../doc_build
 
-
+# Final stage: Production image
 FROM python:3.9.17-bullseye
 
 ENV SPARK_HOME /opt/bitnami/spark
@@ -24,8 +25,8 @@ ENV GUNICORN_WORKERS 4
 ENV ENTRYPOINT /entrypoint.sh
 VOLUME $ELASTICTM_VOLUME
 
-COPY --from=node /app $ELASTICTM
-WORKDIR $ELASTICTM
+# Copy only doc_build from node stage
+COPY --from=node /app/doc_build $ELASTICTM/doc_build
 
 ## LEGACY: The volume at /elastictm and the logs contained in it appear to never get used/modified.
 #RUN mkdir -p $ELASTICTM_VOLUME/log/elastictm && \
@@ -34,23 +35,13 @@ WORKDIR $ELASTICTM
 ## LEGACY: Due to the log files remaining empty, Logrotate will be passive in the container.
 #RUN ln -s conf/logrotate.conf /etc/logrotate.d/activatm
 
+# Install runtime dependencies and build dependencies (build deps will be removed later)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       libboost-all-dev \
       libtercpp-dev \
-      ruby \
-      ruby-dev \
-      zip \
-      # LEGACY: The following packages MIGHT not be needed.
-      # Either (a) they’re installed in the base image or (b) the application does not explicitly use them.
-      apt-transport-https \
-      apt-utils \
-      build-essential \
-      curl \
       default-jdk \
       default-jre \
-      gfortran \
-      git \
       iputils-ping \
       libatlas-base-dev \
       libblas-dev \
@@ -59,92 +50,84 @@ RUN apt-get update && \
       libssl-dev \
       libxml2-dev \
       libxslt1-dev \
-      logrotate \
-      nano \
-      python3-bs4 \
-      python3-matplotlib \
-      python3-nose \
-      python3-numpy \
-      python3-pandas \
-      python3-pip \
-      python3-scipy \
-      python3-sympy \
-      software-properties-common \
+      supervisor \
+      zip \
+      ruby \
+      # Build dependencies (will be removed after compilation)
+      build-essential \
+      gfortran \
+      git \
+      swig \
       wget \
-      supervisor
+      curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# LEGACY: The rubygem seems never used -- instead, source code from tools/pragmatic_segmenter-master is executed.
-RUN gem install pragmatic_segmenter -v 0.3.23
+# Copy only necessary application files (selective copying)
+COPY src/ $ELASTICTM/src/
+COPY tools/ $ELASTICTM/tools/
+COPY conf/ $ELASTICTM/conf/
+COPY requirements.txt $ELASTICTM/
+
+WORKDIR $ELASTICTM
 
 # Download and install Kytea
 WORKDIR /tmp
 COPY ./tools/kytea/kytea-0.4.7.tar.gz .
-RUN tar -xzf kytea-0.4.7.tar.gz
-#RUN wget https://www.phontron.com/kytea/download/kytea-0.4.7.tar.gz && \
-#    # TODO: Verify checksum before continuing?
-#    tar -xzf kytea-0.4.7.tar.gz
-WORKDIR /tmp/kytea-0.4.7
-RUN if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
+RUN tar -xzf kytea-0.4.7.tar.gz && \
+    cd kytea-0.4.7 && \
+    if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
         then ./configure --build=aarch64-unknown-linux-gnu; \
         else ./configure; \
     fi && \
     make && \
     make install && \
-    ldconfig
+    ldconfig && \
+    cd .. && \
+    rm -rf kytea-0.4.7 kytea-0.4.7.tar.gz
+
+# Download, build and install Mykytea-python from source
+# Note: For ARM, this is required. For other architectures, we build from source
+# to ensure Mykytea module is properly installed (pip package kytea may not work correctly)
+WORKDIR /tmp/Mykytea-python
+RUN git clone https://github.com/chezou/Mykytea-python.git . && \
+    git checkout 3a2818e && \
+    make && \
+    make install && \
+    cd .. && \
+    rm -rf Mykytea-python
+
+# Download, build and install Tercpp with custom monkey patching
+WORKDIR $ELASTICTM/tools/pytercpp
+RUN git clone https://github.com/cservan/tercpp.git && \
+    git -C tercpp checkout cef1e60 && \
+    python setup.py build install && \
+    rm -rf tercpp
+
+WORKDIR $ELASTICTM
 
 # Install Python dependencies
-WORKDIR $ELASTICTM
 RUN pip install --no-cache-dir -r requirements.txt
-
-# If running on ARM architecture, download, build and install Mykytea-python from source (see https://github.com/chezou/Mykytea-python/pull/24)
-WORKDIR /tmp/Mykytea-python
-RUN if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
-        then \
-            apt-get install -y --no-install-recommends swig && \
-            git clone https://github.com/chezou/Mykytea-python.git . && \
-            git checkout 3a2818e && \
-            # TODO: Verify checksum before continuing?
-            make && \
-            make install; \
-    fi
 
 # Download universal POS tagset
 RUN python -m nltk.downloader -d /usr/share/nltk_data universal_tagset stopwords punkt
 
-# Copy universal tag map to NTLK data directory
+# Copy universal tag map to NLTK data directory
 COPY tools/universal-pos-tags-master/*-treetagger-pg.map /usr/share/nltk_data/taggers/universal_tagset/
 
-# Download, build and install Tercpp with custom monkey patching
-WORKDIR $ELASTICTM/tools/pytercpp
-COPY tools/pytercpp .
-RUN git clone https://github.com/cservan/tercpp.git && \
-    git -C tercpp checkout cef1e60 && \
-    # TODO: Verify checksum before continuing?
-    python setup.py build install
+# Remove build dependencies and clean up build artifacts
+RUN apt-get purge -y \
+      build-essential \
+      gfortran \
+      git \
+      swig \
+      wget \
+      curl && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-WORKDIR $ELASTICTM
-
-# Start Gunicorn
-#USER www-data
-#WORKDIR $ELASTICTM/src/RestApi
-
-# Create directory/files for Gunicorn logs
-#WORKDIR $ELASTICTM/log
-#RUN chmod 777 . && \
-#    touch gunicorn.log && \
-#    chmod 666 gunicorn.log
-#CMD tail -f $ELASTICTM/log/gunicorn.log & \
-#    cd $ELASTICTM/src && gunicorn \
-#    -m 007 \
-#    --bind 0.0.0.0:5000 \
-#    --workers $GUNICORN_WORKERS \
-#    --bind unix:/tmp/activatm.sock \
-#    --error-logfile $ELASTICTM/log/gunicorn.log \
-#    --access-logfile $ELASTICTM/log/gunicorn.log \
-#    --capture-output \
-#    --log-level INFO \
-#     RestApi.Api:app
-
+# Configure supervisor
 RUN sed -i 's/^\(\[supervisord\]\)$/\1\nnodaemon=true/' /etc/supervisor/supervisord.conf
 
 RUN <<EOF cat > /etc/supervisor/conf.d/supervisor.conf
@@ -200,4 +183,3 @@ CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]
 EXPOSE 80
 
 ENTRYPOINT ["/entrypoint.sh"]
-
