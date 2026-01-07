@@ -124,9 +124,6 @@ RUN apt-get purge -y \
 RUN chown -R root:root ${ELASTICTM} && \
     chmod -R o+rX ${ELASTICTM}
 
-RUN mkdir -p /tmp/elastictm/log /tmp/elastictm/export && \
-    chown -R www-data:www-data /tmp/elastictm
-
 RUN mkdir -p /tmp/elastictm/export && \
     chown -R www-data:www-data /tmp/elastictm/export && \
     chmod 755 /tmp/elastictm/export
