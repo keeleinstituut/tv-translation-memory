@@ -118,12 +118,35 @@ def healthz():
 
 app.config['JWT_AUTH_URL_RULE'] = None
 app.config['JWT_AUTH_HEADER_PREFIX'] = 'Bearer'
-app.keycloak = Keycloak(
-    url=G_CONFIG.config['keycloak']['url'],
-    realm=G_CONFIG.config['keycloak']['realm'],
-    client_id=G_CONFIG.config['keycloak']['client_id'],
-    client_secret=G_CONFIG.config['keycloak']['client_secret'],
-)
+
+keycloak_config = G_CONFIG.config['keycloak']
+realm_public_key_retrieval_mode = keycloak_config.get('realm_public_key_retrieval_mode', 'default')
+if realm_public_key_retrieval_mode == 'config':
+    public_key = keycloak_config.get('public_key')
+    private_key = keycloak_config.get('private_key')
+    key_id = keycloak_config.get('key_id', 'test-key-id')
+    
+    if not public_key:
+        raise ValueError("KEYCLOAK_PUBLIC_KEY environment variable is required when realm_public_key_retrieval_mode is 'config'")
+    
+    app.keycloak = Keycloak(
+        url=keycloak_config['url'],
+        realm=keycloak_config['realm'],
+        client_id=keycloak_config['client_id'],
+        client_secret=keycloak_config['client_secret'],
+        realm_public_key_retrieval_mode=realm_public_key_retrieval_mode,
+        public_key=public_key,
+        private_key=private_key,
+        key_id=key_id,
+    )
+else:
+    app.keycloak = Keycloak(
+        url=keycloak_config['url'],
+        realm=keycloak_config['realm'],
+        client_id=keycloak_config['client_id'],
+        client_secret=keycloak_config['client_secret'],
+        realm_public_key_retrieval_mode=realm_public_key_retrieval_mode,
+    )
 principal = Principal(app, use_sessions=False)
 jwt_middleware = JWT(app=app, identity_handler=identity)
 jwt_middleware.jwt_decode_handler(decode_handler)

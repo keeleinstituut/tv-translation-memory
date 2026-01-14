@@ -2,7 +2,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.development
+      dockerfile: Dockerfile
     environment:
       - SPARK_WORKER_COUNT=8
       - OPENSEARCH_HOST=opensearch-node
@@ -23,9 +23,18 @@ services:
       - KEYCLOAK_URL=http://host.docker.internal:8180
       - KEYCLOAK_REALM=tolkevarav-dev
       - FILESCAN_API_URL=http://host.docker.internal:8010/api
+      # Keycloak config mode for testing (avoids need for Keycloak server)
+      - REALM_PUBLIC_KEY_RETRIEVAL_MODE=${REALM_PUBLIC_KEY_RETRIEVAL_MODE:-config}
+      - KEYCLOAK_PUBLIC_KEY=${KEYCLOAK_PUBLIC_KEY}
+      - KEYCLOAK_PRIVATE_KEY=${KEYCLOAK_PRIVATE_KEY}
+      - KEYCLOAK_KEY_ID=${KEYCLOAK_KEY_ID:-test-key-id}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-test-client}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-test-secret}
     ports:
-      - 5000:5000
+      - 5001:8000
     volumes:
       - ./src:/opt/elastictm/src
+      - ./test:/opt/elastictm/test
+      - ./data:/opt/elastictm/data
       - ./conf:/opt/elastictm/conf
       - ./requirements.txt:/opt/elastictm/requirements.txt

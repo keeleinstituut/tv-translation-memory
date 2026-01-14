@@ -7,8 +7,26 @@ class TestClient:
     res = self.CLIENT.set_user(username=user, role=role, password=user) #
     return res
 
-  def create_tag(self, tag, type):
-    res = self.CLIENT.set_tag(tag, type=type, name=tag)
+  def create_tag(self, tag, type, tv_domain="test-domain", lang_pair="en_sv", institution_id=None):
+    """Create a new tag with required fields"""
+    # institution_id is required when user has sso_realm_create_tm_permission
+    # Extract from token if not provided
+    kwargs = {"name": tag, "type": type, "tv_domain": tv_domain, "lang_pair": lang_pair}
+    if institution_id:
+      kwargs["institution_id"] = institution_id
+    else:
+      # Try to get institution_id from the token if available
+      # This is needed when user has sso_realm_create_tm_permission
+      if hasattr(self.CLIENT, 'token') and self.CLIENT.token:
+        import jwt
+        try:
+          decoded = jwt.decode(self.CLIENT.token, options={"verify_signature": False})
+          inst_id = decoded.get("tolkevarav", {}).get("selectedInstitution", {}).get("id")
+          if inst_id:
+            kwargs["institution_id"] = inst_id
+        except:
+          pass
+    res = self.CLIENT.set_tag(**kwargs)
     return res
 
   def delete_tag(self, tag):

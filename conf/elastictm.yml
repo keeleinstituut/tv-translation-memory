@@ -38,10 +38,15 @@ rabbitmq:
   password: ${RABBITMQ_PASSWORD}
 
 keycloak:
-  url: ${KEYCLOAK_URL}
-  realm: ${KEYCLOAK_REALM}
-  client_id: ${KEYCLOAK_CLIENT_ID}
-  client_secret: ${KEYCLOAK_CLIENT_SECRET}
+  url: !ENV ${KEYCLOAK_URL}
+  realm: !ENV ${KEYCLOAK_REALM}
+  client_id: !ENV ${KEYCLOAK_CLIENT_ID}
+  client_secret: !ENV ${KEYCLOAK_CLIENT_SECRET}
+  realm_public_key_retrieval_mode: !ENV ${REALM_PUBLIC_KEY_RETRIEVAL_MODE}
+  # For config mode:
+  public_key: !ENV ${KEYCLOAK_PUBLIC_KEY}
+  private_key: !ENV ${KEYCLOAK_PRIVATE_KEY}
+  key_id: !ENV ${KEYCLOAK_KEY_ID}
 
 filescan:
   api-url: ${FILESCAN_API_URL}
