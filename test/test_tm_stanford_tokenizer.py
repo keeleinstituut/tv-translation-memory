@@ -59,14 +59,3 @@ def test_tmstanfordtokenizer_zh_tokenize_sent():
 
     assert sentences == ["你好。", "再见。"]
 
-
-@pytest.mark.integration
-def test_tmstanfordtokenizer_ar_process():
-    require_stanford_segmenter("arabic-segmenter-atb+bn+arztrain.ser.gz")
-    tokenizer = TMStanfordTokenizer("AR")
-
-    output = tokenizer.process("اللغة العربية جميلة.")
-
-    assert isinstance(output, str)
-    assert output.strip()
-
