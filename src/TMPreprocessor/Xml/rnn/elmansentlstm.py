@@ -190,7 +190,7 @@ class model(object):
         each target word is accompanied with context words, see the finction contextwin in tools.py
         '''
         idxs = T.imatrix() 
-        x = self.emb[idxs].reshape((idxs.shape[0], de*cs))
+        x = self.emb[idxs].reshape((idxs.shape[0], T.constant(de*cs, dtype='int64')))
         # target labels
         y    = T.ivector('y') # label
         
