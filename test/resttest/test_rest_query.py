@@ -63,13 +63,7 @@ def test_query_basic(api_client, auth_token):
         f"Failed to create tag: {tag_response.status_code} - {tag_response.text[:200]}"
     tag_result = tag_response.json()
 
-    def _list_tags():
-        tags_response = api_client.get("/api/v1/tags")
-        if tags_response.status_code == 200:
-            return tags_response.json()
-        return {}
-
-    tag_id = get_tag_id(tag_result, tag_name, _list_tags)
+    tag_id = get_tag_id(tag_result)
     assert tag_id, f"Failed to get tag_id from created tag. Response: {tag_result}"
 
     source_text = f"Test query basic {int(time.time())}"

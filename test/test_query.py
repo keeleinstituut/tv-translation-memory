@@ -30,11 +30,7 @@ def test_tags(test_client):
     _cleanup_tags(test_client, [tag_public1_name, tag_public2_name])
     
     tag1 = test_client.create_tag(tag_public1_name, "public")
-    tag_public1_id = get_tag_id(
-        tag1,
-        tag_public1_name,
-        lambda: test_client.get_tag(None),
-    )
+    tag_public1_id = get_tag_id(tag1)
     
     yield {
         'tag_public1_id': tag_public1_id,
@@ -190,17 +186,13 @@ class TestQuery:
         tag_public2_name = test_tags['tag_public2_name']
 
         tag2 = test_client.create_tag(tag_public2_name, "public")
-        tag_public2_id = get_tag_id(
-            tag2,
-            tag_public2_name,
-            lambda: test_client.get_tag(None),
-        )
+        tag_public2_id = get_tag_id(tag2)
         
         if not tag_public1_id or not tag_public2_id:
             pytest.fail("Failed to get tag IDs")
 
-        _cleanup_translation_units(test_client, tag_public1_id)
-        _cleanup_translation_units(test_client, tag_public2_id)
+        # _cleanup_translation_units(test_client, tag_public1_id)
+        # _cleanup_translation_units(test_client, tag_public2_id)
         
         test_client.CLIENT.add_tu(texts[0][0], texts[0][1], "en", "sv", tag_public1_id)
         test_client.CLIENT.add_tu(texts[1][0], texts[1][1], "en", "sv", tag_public2_id)

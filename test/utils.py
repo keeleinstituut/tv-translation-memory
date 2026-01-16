@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Dict, Any
+from typing import Optional, Dict, Any
 
 
 def get_institution_id_from_token(token: Optional[str]) -> Optional[str]:
@@ -36,14 +36,7 @@ def find_tag_id_by_name(tags_data: Dict[str, Any], tag_name: str) -> Optional[st
     return None
 
 
-def get_tag_id(tag_response: Dict[str, Any], tag_name: str, list_tags_fn: Callable[[], Dict[str, Any]]) -> Optional[str]:
+def get_tag_id(tag_response: Dict[str, Any]) -> Optional[str]:
     """Get tag id from create response, fallback to list by name."""
-    tag_id = extract_tag_id(tag_response)
-    if tag_id:
-        return tag_id
-    try:
-        tags_data = list_tags_fn()
-    except Exception:
-        return None
-    return find_tag_id_by_name(tags_data, tag_name)
+    return extract_tag_id(tag_response)
 

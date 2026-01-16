@@ -29,11 +29,7 @@ class TestBasic:
         
         for tag, tag_type in tag_types:
             res = test_client.create_tag(tag, tag_type)
-            tag_id = get_tag_id(
-                res,
-                tag,
-                lambda: test_client.get_tag(None),
-            )
+            tag_id = get_tag_id(res)
             
             if tag_id:
                 created_tags.append((tag_id, tag, tag_type))
@@ -70,11 +66,7 @@ class TestBasic:
         """Test translation memory management (import, query, delete)."""
         tag_name = "test_import"
         tag = test_client.create_tag(tag_name, "public")
-        tag_id = get_tag_id(
-            tag,
-            tag_name,
-            lambda: test_client.get_tag(None),
-        )
+        tag_id = get_tag_id(tag)
 
         if not tag_id:
             pytest.fail(f"Failed to get tag_id from created tag. Response: {tag}")

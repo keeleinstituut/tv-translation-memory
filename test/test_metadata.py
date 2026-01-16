@@ -33,11 +33,7 @@ def test_tag_with_import(test_client):
     _cleanup_tags(test_client, [tag_public1_name])
 
     tag1 = test_client.create_tag(tag_public1_name, "public", tv_domain="test-domain", lang_pair="en_de")
-    tag_public1_id = get_tag_id(
-        tag1,
-        tag_public1_name,
-        lambda: test_client.get_tag(None),
-    )
+    tag_public1_id = get_tag_id(tag1)
     
     if not tag_public1_id:
         pytest.fail("Failed to get tag_id from created tag")
