@@ -160,7 +160,20 @@ class TMUtilsMatching:
 
   @staticmethod
   def un_match_distance(src, tgt): # 0 --> bad; 1 --> better
-    return 1 - editdistance.eval(src.strip(' '), tgt.strip(' '))/max(len(src.strip(' ')), len(tgt.strip(' ')))#0.25 - editdistance.eval(src.strip(' '), tgt.strip(' '))#pytercpp.ter(src.lower().split(), tgt.lower().split())
+    """
+    Calculate normalized edit distance between two strings.
+    Returns a value between 0.0 (completely different) and 1.0 (identical).
+    
+    Edge case: If both strings are empty after stripping whitespace,
+    they are considered a perfect match (returns 1.0) to avoid division by zero.
+    """
+    src_stripped = src.strip(' ')
+    tgt_stripped = tgt.strip(' ')
+    # Handle division by zero: if both strings are empty after stripping, they match perfectly
+    if len(src_stripped) == 0 and len(tgt_stripped) == 0:
+      return 1.0
+    max_len = max(len(src_stripped), len(tgt_stripped))
+    return 1 - editdistance.eval(src_stripped, tgt_stripped) / max_len
 
   @staticmethod
   def pos_bool(src, tgt):

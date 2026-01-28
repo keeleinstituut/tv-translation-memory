@@ -55,7 +55,7 @@ class TMMapES(TMMap):
     doc = self._segment2doc(segment)
     if swap: self._swap(doc)
     # Add segment source and target texts to the correspondent index of OpenSearch
-    s_result = self.es.index(index=m_index, doc_type=self.DOC_TYPE, id=self._allocate_id(segment, swap),
+    s_result = self.es.index(index=m_index, id=self._allocate_id(segment, swap),
                              body = doc,
                               ignore=409) # don't throw exception if a document already exists
     return s_result
@@ -78,7 +78,6 @@ class TMMapES(TMMap):
       self.timer.stop("add_segment:swap_doc")
       action = {'_id': self._allocate_id(segment, swap),
                 '_index' : m_index,
-                '_type' : 'id_map',
                 '_op_type': 'update',
                 '_source' : upsert_doc,
                 }
@@ -98,6 +97,7 @@ class TMMapES(TMMap):
 
   def scan(self, langs, filter = None):
     query,swap = self._create_query(langs, filter)
+    if not query: return  # index doesn't exist
 
     for hit in query.scan():
       if swap: hit = self._swap(hit)
@@ -167,8 +167,7 @@ class TMMapES(TMMap):
     for doc in docs:
       # Commmon action fields
       action = {'_id': doc['_id'],
-                '_index': m_index,
-                '_type': self.DOC_TYPE
+                '_index': m_index
                 }
       del doc['_id'] # id is not part of the doc
       if force_delete or not filter_list_attrs:
@@ -297,7 +296,7 @@ class TMMapES(TMMap):
 
   # Should be called after modifying the index
   def refresh(self):
-    self.indexes = self.es.indices_get_alias("*")
+    self.indexes = self.es.indices_get_all()
 
   def refresh_lang_graph(self):
     self.lang_graph = self.get_lang_graph()
@@ -370,7 +369,7 @@ class TMMapES(TMMap):
     if not create_missing: return None,None
     # Neither direct, nor reverse index exist - create a direct one
     try:
-      self.es.indices_create(m_index)
+      self.es.indices_create(index=m_index, body={})
     except:
       pass
     self.refresh_lang_graph()

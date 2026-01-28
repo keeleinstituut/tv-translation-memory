@@ -23,8 +23,7 @@
 #
 
 import re
-from flask_restful import Resource, abort
-from flask_restful.reqparse import RequestParser
+from flask_restx import Resource, abort, reqparse
 
 from AuditLogClient import send_audit_log, AuditLogMessage
 from lib.flask_jwt import current_identity, jwt_required
@@ -109,7 +108,7 @@ class TagsResource(Resource):
     }
 
   def _get_reqparse(self):
-    parser = RequestParser(bundle_errors=True)
+    parser = reqparse.RequestParser(bundle_errors=True)
     parser.add_argument(location='args', name='name', help="Tag's name")
     parser.add_argument(location='args', name='id', action='append', help="Tag's id")
     parser.add_argument(location='args', name='type', action='append', help="Tag's type")
@@ -198,7 +197,7 @@ class TagsResource(Resource):
   def _reqparse(self, tag_id):
       creation = not tag_id
 
-      parser = RequestParser(bundle_errors=True)
+      parser = reqparse.RequestParser(bundle_errors=True)
       parser.add_argument(required=creation, name='name', help="Tag's name")
       parser.add_argument(required=creation, name='type', help="Tag's type")
       parser.add_argument(required=creation, name='tv_domain', help="Tag's Tõlkevärav specific domain")

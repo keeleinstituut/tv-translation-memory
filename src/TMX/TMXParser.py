@@ -28,7 +28,6 @@ import sys
 import logging
 import re
 from io import StringIO
-import chardet
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 

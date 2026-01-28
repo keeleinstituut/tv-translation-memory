@@ -54,8 +54,12 @@ class TMUtils:
 
   @staticmethod
   def validate_lang(lang):
-    import iso639
-    if not iso639.is_valid639_1(lang): raise Exception("Unknown language: {}".format(lang))
+    from iso639 import languages
+    lang = lang.lower() if lang else lang
+    try:
+      languages.get(part1=lang)
+    except KeyError:
+      raise Exception("Unknown language: {}".format(lang))
 
   @staticmethod
   def es_index2mapdb(src_index, tgt_index):
@@ -93,7 +97,7 @@ class TMUtils:
       domains = [d for d in hit.domain if d]
       hit_dict = hit.to_dict()
       hit_dict["domain"] = domains
-      s_result = es.index(index=hit.meta.index, doc_type=hit.meta.doc_type, id=hit.meta.id,
+      s_result = es.index(index=hit.meta.index, id=hit.meta.id,
                                body=hit_dict,
                                ignore=409)  # don't throw exception if a document already exists
 

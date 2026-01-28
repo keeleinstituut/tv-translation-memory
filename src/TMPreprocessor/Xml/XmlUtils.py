@@ -135,18 +135,18 @@ class XmlUtils:
   @staticmethod
   def reduce_tree(tree):
     num_children = 0
-    for e in tree.getchildren():
+    for e in list(tree):
       num_children += 1
       XmlUtils.reduce_tree(e)
     # Case when <T1> <T2> ,,,, </T2> </T1>, replace T1 with T2
     if num_children == 1 and XmlUtils.is_empty_tag(tree):
       pe = tree.getparent()
-      if pe is not None: pe.replace(tree, tree.getchildren()[0])
+      if pe is not None: pe.replace(tree, tree[0])
     else:
       # Case: <T1/> <T2/>, replace with <T1/>
       self_closing = []
       to_delete = []
-      for e in tree.getchildren():
+      for e in list(tree):
         if XmlUtils.is_self_closing_tag(e):  # self-closing tag: <T1/>
           self_closing.append(e)
         else:

@@ -21,8 +21,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask_restful import Resource, abort
-from flask_restful.reqparse import RequestParser
+from flask_restx import Resource, abort, reqparse
 from lib.flask_jwt import current_identity, jwt_required
 
 from Auth import admin_permission
@@ -73,7 +72,7 @@ class JobsResource(Resource):
     return {"jobs" : jobs}
 
   def _get_reqparse(self):
-    parser = RequestParser(bundle_errors=True)
+    parser = reqparse.RequestParser(bundle_errors=True)
     parser.add_argument(name='limit', type=int, default=10,
                         help="Limit output to this number of jobs", location='args')
     return parser.parse_args()

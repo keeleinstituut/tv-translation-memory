@@ -23,8 +23,7 @@
 #
 
 import re
-from flask_restful import Resource, abort
-from flask_restful.reqparse import RequestParser
+from flask_restx import Resource, abort, reqparse
 
 from AuditLogClient import send_audit_log, AuditLogMessage
 from lib.flask_jwt import current_identity, jwt_required
@@ -84,7 +83,7 @@ class ContentChecksResource(Resource):
     }
 
   def _get_reqparse(self):
-    parser = RequestParser(bundle_errors=True)
+    parser = reqparse.RequestParser(bundle_errors=True)
     parser.add_argument(location='args', name='tag_id', help="ID of the tag on which the content check should be performed")
 
     args = parser.parse_args()
@@ -132,7 +131,7 @@ class ContentChecksResource(Resource):
     }
 
   def _reqparse(self):
-    parser = RequestParser(bundle_errors=True)
+    parser = reqparse.RequestParser(bundle_errors=True)
     parser.add_argument(name='tag_id', required=True, help="ID of the tag on which the content check should be performed")
 
     args = parser.parse_args()

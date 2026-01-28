@@ -22,17 +22,44 @@
 # under the License.
 #
 import logging
-from TMAutomaticTranslation.BingTranslator import BingTranslator
-from TMAutomaticTranslation.NeuralMtTranslator import NeuralMtTranslator
-from TMAutomaticTranslation.PangeaMtTranslator import PangeaMtTranslator
 from Config.ConfigMTEngines import ENGINE_CONFIG
+
+
+class NoOpTranslator:
+  """
+  No-op translator for deprecated MT engine functionality.
+  Machine Translation engines have been deprecated and removed.
+  This class provides backward compatibility by implementing the translator
+  interface but always returns None (no translation).
+  """
+  
+  def __init__(self, **kwargs):
+    logging.warning("Machine Translation engines are deprecated. NoOpTranslator is being used - translations will return None.")
+    pass
+
+  def translate(self, text, to_lang, from_lang=None):
+    """
+    Deprecated: Machine Translation is no longer available.
+    Returns None for all translation requests.
+    """
+    if isinstance(text, str):
+      return None
+    # list or tuple
+    if isinstance(text, (list, tuple)):
+      return [None] * len(text)
+    return None
+
+  def translate_batch(self, text_list, to_lang, from_lang=None):
+    """
+    Deprecated: Machine Translation is no longer available.
+    Returns list of None values matching the input length.
+    """
+    return [None] * len(text_list) if text_list else []
 
 
 class TMAutomaticTranslation:
 
-  translators = {'bing': BingTranslator,
-                 'neuralmt': NeuralMtTranslator,
-                 'pangeamt': PangeaMtTranslator}
+  # MT engines have been deprecated - translators dict removed
   engines = dict()
 
   def __init__(self, src_lang, tgt_lang, mt_engine):
@@ -42,16 +69,18 @@ class TMAutomaticTranslation:
 
   @staticmethod
   def get_engine(src_lang, tgt_lang, domain):
+    """
+    Returns a no-op translator since MT engines have been deprecated.
+    Maintains backward compatibility for code that expects a translator instance.
+    """
     if not domain: domain = ""
     key = "{}-{}-{}".format(src_lang, tgt_lang, domain)
     if not key in TMAutomaticTranslation.engines:
-      engine_config = TMAutomaticTranslation.get_engine_config(src_lang, tgt_lang, domain)
-      logging.info("Loading translation engine for: {}, config: {}".format(key, engine_config))
-      TMAutomaticTranslation.engines[key] = TMAutomaticTranslation(src_lang, tgt_lang,
-                                                                   TMAutomaticTranslation.translators[engine_config['engine']](**engine_config))
+      logging.warning("Machine Translation engines are deprecated. Using NoOpTranslator for key: {}".format(key))
+      TMAutomaticTranslation.engines[key] = TMAutomaticTranslation(src_lang, tgt_lang, NoOpTranslator())
     return TMAutomaticTranslation.engines[key]
 
-  # Get engine configuration
+  # Get engine configuration (deprecated - kept for backward compatibility)
   @staticmethod
   def get_engine_config(src_lang, tgt_lang, domain):
     mt_domain = 'any' if not domain else domain
@@ -65,6 +94,7 @@ class TMAutomaticTranslation:
 
 
 if __name__ == "__main__":
-  bt = TMAutomaticTranslation('en', 'es')
-  print(bt.translate(["What is your name?", "Who are you?"]))
-  print(bt.translate("What is your name?"))
+  # Example usage - note that MT engines are deprecated, so translations will return None
+  bt = TMAutomaticTranslation.get_engine('en', 'es', None)
+  print("Translation result (will be None):", bt.translate(["What is your name?", "Who are you?"]))
+  print("Translation result (will be None):", bt.translate("What is your name?"))

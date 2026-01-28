@@ -12,7 +12,7 @@ WORKDIR /app/src/RestApi
 RUN apidoc -i . -o ../../doc_build
 
 # Final stage: Production image
-FROM python:3.9.17-bullseye
+FROM python:3.11-bullseye
 
 ENV SPARK_HOME /opt/bitnami/spark
 COPY --from=spark $SPARK_HOME $SPARK_HOME
@@ -71,6 +71,73 @@ COPY requirements.txt $ELASTICTM/
 
 WORKDIR $ELASTICTM
 
+# Extract TreeTagger parameter files
+WORKDIR $ELASTICTM/tools/tree-tagger-linux-3.2
+RUN mkdir -p lib && \
+    if [ -f english-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd english-par-linux-3.2-utf8.bin.gz > lib/english-utf8.par && \
+        ln -s english-utf8.par lib/english.par; \
+    fi && \
+    if [ -f french-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd french-par-linux-3.2-utf8.bin.gz > lib/french-utf8.par && \
+        ln -s french-utf8.par lib/french.par; \
+    fi && \
+    if [ -f spanish-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd spanish-par-linux-3.2-utf8.bin.gz > lib/spanish-utf8.par && \
+        ln -s spanish-utf8.par lib/spanish.par; \
+    fi && \
+    if [ -f italian-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd italian-par-linux-3.2-utf8.bin.gz > lib/italian-utf8.par && \
+        ln -s italian-utf8.par lib/italian.par; \
+    fi && \
+    if [ -f german-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd german-par-linux-3.2-utf8.bin.gz > lib/german-utf8.par && \
+        ln -s german-utf8.par lib/german.par; \
+    fi && \
+    if [ -f slovak-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd slovak-par-linux-3.2-utf8.bin.gz > lib/slovak-utf8.par && \
+        ln -s slovak-utf8.par lib/slovak.par; \
+    fi && \
+    if [ -f dutch-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd dutch-par-linux-3.2-utf8.bin.gz > lib/dutch-utf8.par && \
+        ln -s dutch-utf8.par lib/dutch.par; \
+    fi && \
+    if [ -f portuguese-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd portuguese-par-linux-3.2-utf8.bin.gz > lib/portuguese-utf8.par && \
+        ln -s portuguese-utf8.par lib/portuguese.par; \
+    fi && \
+    if [ -f romanian-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd romanian-par-linux-3.2-utf8.bin.gz > lib/romanian-utf8.par && \
+        ln -s romanian-utf8.par lib/romanian.par; \
+    fi && \
+    if [ -f bulgarian-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd bulgarian-par-linux-3.2-utf8.bin.gz > lib/bulgarian-utf8.par && \
+        ln -s bulgarian-utf8.par lib/bulgarian.par; \
+    fi && \
+    if [ -f polish-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd polish-par-linux-3.2-utf8.bin.gz > lib/polish-utf8.par && \
+        ln -s polish-utf8.par lib/polish.par; \
+    fi && \
+    if [ -f estonian-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd estonian-par-linux-3.2-utf8.bin.gz > lib/estonian-utf8.par && \
+        ln -s estonian-utf8.par lib/estonian.par; \
+    fi && \
+    if [ -f finnish-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd finnish-par-linux-3.2-utf8.bin.gz > lib/finnish-utf8.par && \
+        ln -s finnish-utf8.par lib/finnish.par; \
+    fi && \
+    if [ -f russian-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd russian-par-linux-3.2-utf8.bin.gz > lib/russian-utf8.par && \
+        ln -s russian-utf8.par lib/russian.par; \
+    fi && \
+    if [ -f slovenian-par-linux-3.2-utf8.bin.gz ]; then \
+        gzip -cd slovenian-par-linux-3.2-utf8.bin.gz > lib/slovenian-utf8.par && \
+        ln -s slovenian-utf8.par lib/slovenian.par; \
+    fi && \
+    chmod -R o+rX lib/
+
+WORKDIR $ELASTICTM
+
 # Download and install Kytea
 WORKDIR /tmp
 COPY ./tools/kytea/kytea-0.4.7.tar.gz .
@@ -88,15 +155,17 @@ RUN tar -xzf kytea-0.4.7.tar.gz && \
 
 WORKDIR $ELASTICTM
 
+# Upgrade pip to the latest version
+RUN pip install --upgrade pip
+
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download, build and install Mykytea-python from source
-# This is required for ARM (see https://github.com/chezou/Mykytea-python/pull/24)
-# For other architectures, we build from source after pip install to ensure
-# the Mykytea module is properly installed (pip package kytea may not work correctly)
+# Build and install Mykytea-python from source as fallback
+# The pip package may not work correctly or may not provide Mykytea module
+# Using v0.1.9 tag to match the requirements.txt version
 WORKDIR /tmp/Mykytea-python
 RUN git clone https://github.com/chezou/Mykytea-python.git . && \
-    git checkout 3a2818e && \
+    git checkout v0.1.9 && \
     make && \
     make install && \
     cd .. && \
@@ -112,7 +181,8 @@ RUN git clone https://github.com/cservan/tercpp.git && \
 WORKDIR $ELASTICTM
 
 # Download universal POS tagset
-RUN python -m nltk.downloader -d /usr/share/nltk_data universal_tagset stopwords punkt
+# Note: NLTK 3.9+ uses punkt_tab in addition to punkt for sentence tokenization
+RUN python -m nltk.downloader -d /usr/share/nltk_data universal_tagset stopwords punkt punkt_tab
 
 # Copy universal tag map to NLTK data directory
 COPY tools/universal-pos-tags-master/*-treetagger-pg.map /usr/share/nltk_data/taggers/universal_tagset/
