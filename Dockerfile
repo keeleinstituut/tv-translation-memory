@@ -2,7 +2,6 @@
 
 FROM docker.io/bitnamilegacy/spark:3.4 as spark
 
-# Node stage: Only copy files needed for API doc generation
 FROM node:latest as node
 
 COPY src/RestApi /app/src/RestApi
@@ -63,7 +62,6 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy only necessary application files (selective copying)
 COPY src/ $ELASTICTM/src/
 COPY tools/ $ELASTICTM/tools/
 COPY conf/ $ELASTICTM/conf/
@@ -138,7 +136,6 @@ RUN mkdir -p lib && \
 
 WORKDIR $ELASTICTM
 
-# Download and install Kytea
 WORKDIR /tmp
 COPY ./tools/kytea/kytea-0.4.7.tar.gz .
 RUN tar -xzf kytea-0.4.7.tar.gz && \
@@ -171,7 +168,6 @@ RUN git clone https://github.com/chezou/Mykytea-python.git . && \
     cd .. && \
     rm -rf Mykytea-python
 
-# Download, build and install Tercpp with custom monkey patching
 WORKDIR $ELASTICTM/tools/pytercpp
 RUN git clone https://github.com/cservan/tercpp.git && \
     git -C tercpp checkout cef1e60 && \
@@ -184,10 +180,8 @@ WORKDIR $ELASTICTM
 # Note: NLTK 3.9+ uses punkt_tab in addition to punkt for sentence tokenization
 RUN python -m nltk.downloader -d /usr/share/nltk_data universal_tagset stopwords punkt punkt_tab
 
-# Copy universal tag map to NLTK data directory
 COPY tools/universal-pos-tags-master/*-treetagger-pg.map /usr/share/nltk_data/taggers/universal_tagset/
 
-# Remove build dependencies and clean up build artifacts
 RUN apt-get purge -y \
       build-essential \
       gfortran \
@@ -199,17 +193,17 @@ RUN apt-get purge -y \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Set proper ownership and permissions for www-data user
-# Application files need to be owned by www-data so gunicorn/celery can access them
-RUN chown -R www-data:www-data $ELASTICTM
+RUN chown -R root:root ${ELASTICTM} && \
+    chmod -R o+rX ${ELASTICTM}
 
-# Ensure Spark directory is readable by www-data
+RUN mkdir -p /tmp/elastictm/export && \
+    chown -R www-data:www-data /tmp/elastictm/export && \
+    chmod 755 /tmp/elastictm/export
+
 RUN chmod -R o+rX $SPARK_HOME
 
-# Ensure NLTK data is readable by www-data
 RUN chmod -R o+rX /usr/share/nltk_data
 
-# Configure supervisor
 RUN sed -i 's/^\(\[supervisord\]\)$/\1\nnodaemon=true/' /etc/supervisor/supervisord.conf
 
 RUN <<EOF cat > /etc/supervisor/conf.d/supervisor.conf
