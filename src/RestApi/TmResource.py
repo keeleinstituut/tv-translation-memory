@@ -29,8 +29,7 @@ import datetime
 import json
 import logging
 from flask import Response, request, current_app
-from flask_restful import Resource, abort, inputs
-from flask_restful.reqparse import RequestParser
+from flask_restx import Resource, abort, inputs, reqparse
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -127,7 +126,7 @@ class TmResource(Resource):
    @apiParam {Number} [min_match=75] Return only match above or equal to given threshold (0-100)
    @apiParam {Boolean} [strip_tags=false] Strip all XML tags from the query
    @apiParam {Boolean} [concordance=false] Concordance search mode
-   @apiParam {Boolean} [aut_trans=True] Apply machine translation if match score is less than a threshold
+   @apiParam {Boolean} [aut_trans=False] DEPRECATED: Machine Translation engines have been removed. This parameter is accepted for backward compatibility but has no effect (no translation will be performed).
    @apiParam {String} [tag] Prefer given tag(s). Penalize segments from other tags
    @apiParam {String} smeta Source metadata (JSON).
    @apiParam {String} tmeta Target metadata (JSON).
@@ -294,7 +293,7 @@ class TmResource(Resource):
 
 
   def _get_reqparse(self):
-    parser = RequestParser()
+    parser = reqparse.RequestParser()
     parser.add_argument(location='args', name='q', required=True, help="TM query string is a mandatory option")
     parser.add_argument(location='args', name='slang', help="Source language is a desired option", type=self._validate_lang)
     parser.add_argument(location='args', name='tlang', required=True, help="Target language is a mandatory option", type=self._validate_lang)
@@ -369,7 +368,7 @@ class TmResource(Resource):
 
 
   def _post_reqparse(self):
-    parser = RequestParser()
+    parser = reqparse.RequestParser()
     parser.add_argument(name='stext', required=True, help="Source text is a mandatory option", type=str)
     parser.add_argument(name='ttext', required=True, help="Target text is a mandatory option", type=str)
     parser.add_argument(name='slang', required=True, help="Source language is a mandatory option", type=self._validate_lang)
@@ -438,7 +437,7 @@ class TmResource(Resource):
     return lang
 
   def _common_reqparse(self):
-    parser = RequestParser()
+    parser = reqparse.RequestParser()
     parser.add_argument(name='slang', required=True, help="Source language is a mandatory option", type=self._validate_lang)
     parser.add_argument(name='tlang', required=True, help="Target language is a mandatory option", type=self._validate_lang)
     parser.add_argument(name='squery', help="Get source segments matching this pattern. Can be regular expression")
@@ -566,7 +565,7 @@ class TmBatchQueryResource(TmResource):
    @apiParam {Number} [min_match=75] Return only match above or equal to given threshold (0-100)
    @apiParam {Boolean} [strip_tags=false] Strip all XML tags from the query
    @apiParam {Boolean} [concordance=false] Concordance search mode
-   @apiParam {Boolean} [aut_trans=True] Applied machine translation if there aren't match
+   @apiParam {Boolean} [aut_trans=False] DEPRECATED: Machine Translation engines have been removed. This parameter is accepted for backward compatibility but has no effect (no translation will be performed).
    @apiParam {String} [tag] Prefer given tag(s). Penalize segments from other tags
    @apiParam {String} [split_pattern] Enable splitting of query to multiple queries by using this pattern (see https://docs.python.org/3/library/stdtypes.html#str.split)
    @apiParam {String='regex,tags,posTag,split' or 'None'} [operation_match='regex,tags,posTag,split'] Operation to match. If None only editdistace is calculated
@@ -671,7 +670,7 @@ class TmImportResource(TmResource):
     return [lp.split('_') for lp in lang_pairs]
 
   def _put_reqparse(self):
-    parser = RequestParser()
+    parser = reqparse.RequestParser()
     parser.add_argument(name='file', required=True, type=FileStorage, location='files')
     parser.add_argument(location='form', name='tag', required=True,  action='append', help="Translation memories tag is a mandatory option")
     parser.add_argument(location='form', name='lang_pair', action='append', help="Language pair to parse from TMX. May supply multiple pairs \ "
@@ -922,7 +921,7 @@ class TmGenerateResource(TmResource):
     return {"job_id": task.id, "message": "Job submitted successfully"}
 
   def _put_reqparse(self):
-    parser = RequestParser()
+    parser = reqparse.RequestParser()
     parser.add_argument(name='slang', required=True, help="Source language", type=self._validate_lang)
     parser.add_argument(name='tlang', required=True, help="Target language", type=self._validate_lang)
     parser.add_argument(name='plang', help="Pivot language", type=self._validate_lang)
@@ -968,7 +967,7 @@ class TmPosTagResource(TmResource):
 
   def _put_pos_reqparse(self):
 
-    parser = RequestParser()
+    parser = reqparse.RequestParser()
     parser.add_argument(name='slang', required=True, help="Source language is a mandatory option", type=self._validate_lang)
     parser.add_argument(name='tlang', required=True, help="Target language is a mandatory option", type=self._validate_lang)
     parser.add_argument(name='universal', type=inputs.boolean, default=False, help="Convert all POS tags to Universal POS tags")
@@ -1105,7 +1104,7 @@ class TmStatsResource(TmResource):
     }
 
   def _reqparse(self):
-    parser = RequestParser(bundle_errors=True)
+    parser = reqparse.RequestParser(bundle_errors=True)
     parser.add_argument(location='args', name='institution_id', help="Tag's Tõlkevärav specific institution id")
     args = parser.parse_args()
     return args

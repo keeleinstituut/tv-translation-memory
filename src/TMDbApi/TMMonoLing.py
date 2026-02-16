@@ -60,7 +60,6 @@ class TMMonoLing:
     id = getattr(segment, ftype + '_id')
     index = TMUtils.lang2es_index(getattr(segment, ftype + '_language'))
     s_result = self.es.index(index=index,
-                             doc_type=self.DOC_TYPE,
                              id=id,
                              body=self._segment2doc(segment, ftype))
     return id
@@ -148,7 +147,6 @@ class TMMonoLing:
     actions = [{'_op_type': 'delete',
                 '_id': id,
                 '_index' : index,
-                '_type': self.DOC_TYPE,
                 } for id in ids]
     # Bulk delete
     try:
@@ -161,7 +159,7 @@ class TMMonoLing:
   # Should be called after modifying the index
   def refresh(self):
     #self.indexes = self.es.indices.get_aliases() #not supported anymore
-    self.indexes = self.es.indices_get_alias("*")
+    self.indexes = self.es.indices_get_all()
 
   def index_exists(self, index):
     return self.es.indices_exists(index)

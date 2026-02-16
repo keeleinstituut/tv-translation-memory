@@ -27,7 +27,7 @@ from flask import current_app
 from flask_principal import identity_changed, identity_loaded, RoleNeed, UserNeed, Permission, PermissionDenied
 from RestApi.Keycloak import KeycloakIdentity
 from lib.flask_jwt import _jwt_required, current_identity
-from flask_restful import abort
+from flask_restx import abort
 from functools import wraps
 
 import fnmatch

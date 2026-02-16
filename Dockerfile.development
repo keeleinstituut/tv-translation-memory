@@ -11,7 +11,7 @@ WORKDIR /app/src/RestApi
 RUN apidoc -i . -o ../../doc_build
 
 
-FROM python:3.9.17-bullseye
+FROM python:3.11-bullseye
 
 ENV SPARK_HOME /opt/bitnami/spark
 COPY --from=spark $SPARK_HOME $SPARK_HOME
@@ -100,20 +100,20 @@ RUN if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
 WORKDIR $ELASTICTM
 RUN pip install --no-cache-dir -r requirements.txt
 
-# If running on ARM architecture, download, build and install Mykytea-python from source (see https://github.com/chezou/Mykytea-python/pull/24)
+# Build and install Mykytea-python from source as fallback
+# The pip package may not work correctly or may not provide Mykytea module
+# Using v0.1.9 tag to match the requirements.txt version
 WORKDIR /tmp/Mykytea-python
-RUN if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
-        then \
-            apt-get install -y --no-install-recommends swig && \
-            git clone https://github.com/chezou/Mykytea-python.git . && \
-            git checkout 3a2818e && \
-            # TODO: Verify checksum before continuing?
-            make && \
-            make install; \
-    fi
+RUN git clone https://github.com/chezou/Mykytea-python.git . && \
+    git checkout v0.1.9 && \
+    make && \
+    make install && \
+    cd .. && \
+    rm -rf Mykytea-python
 
 # Download universal POS tagset
-RUN python -m nltk.downloader -d /usr/share/nltk_data universal_tagset stopwords punkt
+# Note: NLTK 3.9+ uses punkt_tab in addition to punkt for sentence tokenization
+RUN python -m nltk.downloader -d /usr/share/nltk_data universal_tagset stopwords punkt punkt_tab
 
 # Copy universal tag map to NTLK data directory
 COPY tools/universal-pos-tags-master/*-treetagger-pg.map /usr/share/nltk_data/taggers/universal_tagset/

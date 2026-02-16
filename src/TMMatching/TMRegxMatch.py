@@ -140,11 +140,11 @@ class TMRegexMatch():
                 except UnboundLocalError:
                   current_lang = Locale('en')# 'en' by default
                 try:
-                  q_value = numbers.format_number(q_value, current_lang)
+                  q_value = numbers.format_decimal(Decimal(q_value), locale=current_lang)
                 except (ValueError, DecimalException):
                   pass
-                  #q_value = numbers.format_number(q_value, current_lang)
-                  #q_value = numbers.format_number(q_value, Locale('en'))
+                  #q_value = numbers.format_decimal(Decimal(q_value), locale=current_lang)
+                  #q_value = numbers.format_decimal(Decimal(q_value), locale=Locale('en'))
               #print(q_value)
               tm_text_copy = tm_text_copy.replace(tm_match.group(), q_value, 1)
               break

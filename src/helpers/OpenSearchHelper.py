@@ -53,17 +53,21 @@ class OpenSearchHelper:
             pass
 
     def indices_get_alias(self, alias):
-        return self.es.indices.get_alias(alias)
+        return self.es.indices.get_alias(name=alias)
+
+    def indices_get_all(self):
+        """Get all indices, not just those with aliases."""
+        result = self.es.indices.get(index="*")
+        return list(result.keys()) if result else []
 
     def indices_create(self, index, body):
         return self.es.indices.create(index=index, body=body)
 
     def indices_exists(self, index):
-        return self.es.indices.exists(index)
+        return self.es.indices.exists(index=index)
 
     # def index(self, index, doc_type, id, body, ignore=409):
     def index(self, index, id, body, ignore=409):
-
         return self.es.index(index=index,
                                id=id,
                                body=body,

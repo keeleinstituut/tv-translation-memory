@@ -285,7 +285,7 @@ class TMDbApi:
 
   def get_all_langs(self):
     lang_graph = self.seg_map.get_lang_graph()
-    langs = [lang_pair for lang_pair in lang_graph.edges_iter()]
+    langs = [lang_pair for lang_pair in lang_graph.edges()]
     return langs
 
   # Return list of file names for given language pair and filter
@@ -320,7 +320,7 @@ class TMDbApi:
     lang_graph = self.seg_map.get_lang_graph()
 
     lang_pairs = dict()
-    for lang_pair in lang_graph.edges_iter():
+    for lang_pair in lang_graph.edges():
       lang_pair_str = "_".join(lang_pair)
       lang_pairs[lang_pair_str] = dict()
       lang_pairs[lang_pair_str]['count'] = self.seg_map.count(lang_pair)

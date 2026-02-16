@@ -44,7 +44,7 @@ logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', level=loggin
 log = logging.getLogger()
 log.setLevel(logging.ERROR)
 
-from flask_restful import Api
+from flask_restx import Api
 from flask_principal import Principal
 from lib.flask_jwt import JWT
 
@@ -55,7 +55,6 @@ from helpers.AuditContext import current_auditlog_action
 
 app.config['SECRET_KEY'] = 'super-secret'
 app.config['VERSION'] = 1
-app.config['PROPAGATE_EXCEPTIONS'] = True
 app.config['FILEUPLOAD_IMPORT_EXTENSIONS'] = ['.tmx', '.zip']
 
 # Setup logging

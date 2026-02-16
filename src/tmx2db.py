@@ -62,7 +62,7 @@ def parse_args():
 
   parser.add_argument('-d', '--dir', type=str, help="Root directory for TMX file tree")
   parser.add_argument('-f', '--file', type=str, help="Single TMX file")
-  parser.add_argument('-md', '--map_db', choices=['opensearch', 'mongodb', 'couchdb', 'redis', 'mysql', 'postgresql'],
+  parser.add_argument('-md', '--map_db', choices=['opensearch', 'redis', 'mysql', 'postgresql'],
                       help='Choose underlying driver for Map DB',
                       default='opensearch')
   return parser.parse_args()

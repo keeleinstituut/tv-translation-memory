@@ -1,10 +1,6 @@
-# Language pair-specific script engine
-engines:
-    - source: any
-      target: any
-      domain: any
-      engine: bing
-
-bing:
-    key: bing_key
+# Machine Translation engines have been deprecated and removed.
+# The aut_trans parameter in API endpoints is still accepted for backward compatibility
+# but will not perform any translation (returns None).
+#
+# This configuration file is kept for backward compatibility but is no longer used.
 
