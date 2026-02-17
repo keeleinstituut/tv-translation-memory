@@ -10,7 +10,6 @@ RUN npm install apidoc -g
 WORKDIR /app/src/RestApi
 RUN apidoc -i . -o ../../doc_build
 
-# Final stage: Production image
 FROM python:3.11-bullseye
 
 ENV SPARK_HOME /opt/bitnami/spark

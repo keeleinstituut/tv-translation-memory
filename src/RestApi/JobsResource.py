@@ -33,9 +33,9 @@ from helpers.AuditContext import set_current_auditlog_action
 
 class JobsResource(Resource):
   decorators = [jwt_required()]
+  job_api = ESJobApi()
 
-  def __init__(self):
-    self.job_api = ESJobApi()
+
 
   """
    @api {get} /jobs/id Query job details (start time, status, end time etc.). If no job id specified, all jobs are returned

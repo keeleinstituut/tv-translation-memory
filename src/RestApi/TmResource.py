@@ -672,8 +672,8 @@ class TmImportResource(TmResource):
   def _put_reqparse(self):
     parser = reqparse.RequestParser()
     parser.add_argument(name='file', required=True, type=FileStorage, location='files')
-    parser.add_argument(location='form', name='tag', required=True,  action='append', help="Translation memories tag is a mandatory option")
-    parser.add_argument(location='form', name='lang_pair', action='append', help="Language pair to parse from TMX. May supply multiple pairs \ "
+    parser.add_argument(location=['args', 'values', 'form'], name='tag', required=True,  action='append', help="Translation memories tag is a mandatory option")
+    parser.add_argument(location=['args', 'values', 'form'], name='lang_pair', action='append', help="Language pair to parse from TMX. May supply multiple pairs \ "
                                                "Each pair is a string of 2-letter language codes joined with underscore",
                         default=[],
 

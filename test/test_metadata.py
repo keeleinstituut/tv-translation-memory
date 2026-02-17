@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(script_path, "..", "src"))
 sys.path.insert(0, script_path)
 
 from RestClient.RestClient import RestClient
-from utils import get_tag_id
+from utils import get_tag_id, get_institution_id_from_token
 
 try:
     from test_auth_helper import generate_user_token
@@ -28,11 +28,18 @@ except ImportError:
 def test_tag_with_import(test_client):
     """Set up test tag and import TMX file."""
     test_id = str(uuid.uuid4())[:8]
+    tv_domain = str(uuid.uuid4())
     tag_public1_name = f"tag_public1_{test_id}"
 
     _cleanup_tags(test_client, [tag_public1_name])
 
-    tag1 = test_client.create_tag(tag_public1_name, "public", tv_domain="test-domain", lang_pair="en_de")
+    tag1 = test_client.create_tag(
+        name=tag_public1_name,
+        type="public",
+        lang_pair="en_de",
+        tv_domain=tv_domain,
+        institution_id=get_institution_id_from_token(test_client.CLIENT.token)
+    )
     tag_public1_id = get_tag_id(tag1)
     
     if not tag_public1_id:
@@ -46,7 +53,7 @@ def test_tag_with_import(test_client):
         lang_pairs=["en_de"]
     )
 
-    if not import_response or "job_id" not in import_response:
+    if not import_response or "jobs" not in import_response or not import_response.get("jobs") or "id" not in import_response["jobs"][0]:
         pytest.fail(f"Import failed: {import_response}")
 
     max_wait = 180

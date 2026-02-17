@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(script_path, "..", "src"))
 sys.path.insert(0, script_path)
 
 from RestClient.RestClient import RestClient
-from utils import get_tag_id
+from utils import get_tag_id, get_institution_id_from_token
 
 try:
     from test_auth_helper import generate_user_token
@@ -29,7 +29,13 @@ def test_tags(test_client):
 
     _cleanup_tags(test_client, [tag_public1_name, tag_public2_name])
     
-    tag1 = test_client.create_tag(tag_public1_name, "public")
+    tag1 = test_client.create_tag(
+        name=tag_public1_name, 
+        type="public", 
+        lang_pair="en_sv",
+        tv_domain=str(uuid.uuid4()),
+        institution_id=get_institution_id_from_token(test_client.CLIENT.token)
+    )
     tag_public1_id = get_tag_id(tag1)
     
     yield {
@@ -185,7 +191,13 @@ class TestQuery:
         tag_public1_id = test_tags['tag_public1_id']
         tag_public2_name = test_tags['tag_public2_name']
 
-        tag2 = test_client.create_tag(tag_public2_name, "public")
+        tag2 = test_client.create_tag(
+            name=tag_public2_name,
+            lang_pair="en_sv",
+            type="public",
+            tv_domain=str(uuid.uuid4()),
+            institution_id=get_institution_id_from_token(test_client.CLIENT.token)
+        )
         tag_public2_id = get_tag_id(tag2)
         
         if not tag_public1_id or not tag_public2_id:

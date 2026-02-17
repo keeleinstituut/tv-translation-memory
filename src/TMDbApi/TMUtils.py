@@ -54,12 +54,10 @@ class TMUtils:
 
   @staticmethod
   def validate_lang(lang):
-    from iso639 import languages
-    lang = lang.lower() if lang else lang
-    try:
-      languages.get(part1=lang)
-    except KeyError:
-      raise Exception("Unknown language: {}".format(lang))
+    from iso639 import is_language
+    if lang and is_language(lang.lower()):
+        return True
+    raise Exception("Unknown language: {}".format(lang))
 
   @staticmethod
   def es_index2mapdb(src_index, tgt_index):

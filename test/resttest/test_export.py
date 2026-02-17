@@ -23,7 +23,7 @@ def test_export_tmx(api_client, auth_token):
         "name": tag_name,
         "type": "public",
         "tv_domain": "test-domain",
-        "lang_pair": f"{slang}_{tlang}",
+        "lang_pair": "{}_{}".format(slang, tlang),
     }
     if institution_id:
         tag_data["institution_id"] = institution_id

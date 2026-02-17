@@ -75,7 +75,7 @@ RUN apt-get update && \
       python3-scipy \
       python3-sympy \
       software-properties-common \
-      wget=1.21-1+deb11u1
+      wget
 
 # LEGACY: The rubygem seems never used -- instead, source code from tools/pragmatic_segmenter-master is executed.
 RUN gem install pragmatic_segmenter -v 0.3.23
@@ -98,6 +98,8 @@ RUN if [ "$TARGETARCH" = "arm64" ] || [ "$TARGETARCH" = "arm32" ]; \
 
 # Install Python dependencies
 WORKDIR $ELASTICTM
+# Install setuptools first to ensure pkg_resources is available for iso-639 package
+RUN pip install --no-cache-dir "setuptools>=78.1.1"
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Build and install Mykytea-python from source as fallback

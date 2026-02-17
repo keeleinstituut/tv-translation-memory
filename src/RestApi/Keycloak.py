@@ -1,10 +1,12 @@
 from urllib.error import URLError
+import os
 
 import jwt
 import json
 import urllib.request
 import urllib.parse
 from datetime import datetime, timezone
+from cryptography.hazmat.primitives import serialization
 
 from flask_principal import Identity
 
@@ -15,7 +17,51 @@ class Keycloak:
         self.realm = realm
         self.client_id = client_id
         self.client_secret = client_secret
-        self.jwk_client = jwt.PyJWKClient(uri="{}/realms/{}/protocol/openid-connect/certs".format(self.url, self.realm))
+        
+        # Check if config mode is enabled
+        self.config_mode = os.environ.get('REALM_PUBLIC_KEY_RETRIEVAL_MODE') == 'config'
+        
+        if self.config_mode:
+            # In config mode, load public key from environment
+            public_key_pem = os.environ.get('KEYCLOAK_PUBLIC_KEY')
+            if not public_key_pem:
+                raise ValueError("KEYCLOAK_PUBLIC_KEY environment variable is required when REALM_PUBLIC_KEY_RETRIEVAL_MODE=config")
+            
+            # Normalize the key format
+            if isinstance(public_key_pem, str):
+                # Strip quotes if present (docker-compose may add them)
+                public_key_pem = public_key_pem.strip().strip('"').strip("'")
+                # Convert escaped newlines to actual newlines (for docker-compose env vars)
+                # Handle both single and double escaping, and already-converted newlines
+                if '\\n' in public_key_pem:
+                    public_key_pem = public_key_pem.replace('\\n', '\n')
+                    public_key_pem = public_key_pem.replace('\\\\n', '\n')
+                # Ensure proper PEM format
+                if not public_key_pem.startswith('-----BEGIN'):
+                    raise ValueError("Public key does not appear to be in PEM format")
+            
+            # Load the public key
+            try:
+                key_bytes = public_key_pem.encode('utf-8') if isinstance(public_key_pem, str) else public_key_pem
+                self.public_key = serialization.load_pem_public_key(key_bytes)
+                self.config_key_id = os.environ.get('KEYCLOAK_KEY_ID', 'test-key-id')
+            except Exception as e:
+                raise ValueError(f"Failed to load public key: {e}")
+            
+            # Create a mock JWK-like object for compatibility
+            class ConfigJWK:
+                def __init__(self, key):
+                    self.key = key
+            
+            self.config_jwk = ConfigJWK(self.public_key)
+            self.jwk_client = None
+        else:
+            # Normal mode: use JWKS client
+            self.jwk_client = jwt.PyJWKClient(uri="{}/realms/{}/protocol/openid-connect/certs".format(self.url, self.realm))
+            self.public_key = None
+            self.config_key_id = None
+            self.config_jwk = None
+        
         self.jwt_client = JwtClient(
             uri="{}/realms/{}/protocol/openid-connect/token".format(self.url, self.realm),
             client_id=self.client_id,
@@ -23,7 +69,14 @@ class Keycloak:
             keycloak=self)
 
     def get_jwk(self, kid):
-        return self.jwk_client.get_signing_key(kid)
+        if self.config_mode:
+            # In config mode, verify kid matches and return the configured key
+            if kid != self.config_key_id:
+                raise ValueError(f"Key ID mismatch: expected '{self.config_key_id}', got '{kid}'")
+            return self.config_jwk
+        else:
+            # Normal mode: fetch from JWKS
+            return self.jwk_client.get_signing_key(kid)
 
     def get_service_account_jwt(self, refresh=False):
         return self.jwt_client.get_jwt(refresh=refresh)

@@ -2,6 +2,7 @@
 import os
 import sys
 import time
+import uuid
 import pytest
 
 # Append to python path
@@ -10,7 +11,7 @@ sys.path.insert(0, os.path.join(script_path, "..", "src"))
 sys.path.insert(0, script_path)
 sys.path.insert(0, ".")
 
-from utils import get_tag_id
+from utils import get_tag_id, get_institution_id_from_token
 
 
 @pytest.mark.integration
@@ -28,7 +29,14 @@ class TestBasic:
         created_tags = []
         
         for tag, tag_type in tag_types:
-            res = test_client.create_tag(tag, tag_type)
+            res = test_client.create_tag(
+                name=tag, 
+                type=tag_type, 
+                lang_pair="en_et",
+                tv_domain=str(uuid.uuid4()),
+                institution_id=get_institution_id_from_token(test_client.CLIENT.token)
+            )
+            assert res is not None
             tag_id = get_tag_id(res)
             
             if tag_id:
@@ -50,7 +58,7 @@ class TestBasic:
         if created_tags:
             tag_id, tag_name, tag_type = created_tags[0]
             new_name = "test_new_name"
-            test_client.CLIENT.set_tag(tagname=tag_id, name=new_name)
+            test_client.CLIENT.set_tag(tag_id, name=new_name)
             res = test_client.get_tag(tag_id)
             if isinstance(res, dict) and "id" in res:
                 assert str(res["id"]) == str(tag_id)
@@ -65,7 +73,13 @@ class TestBasic:
     def test_manage_tm(self, test_client):
         """Test translation memory management (import, query, delete)."""
         tag_name = "test_import"
-        tag = test_client.create_tag(tag_name, "public")
+        tag = test_client.create_tag(
+            name=tag_name, 
+            type="public", 
+            lang_pair="en_sv",
+            tv_domain=str(uuid.uuid4()),
+            institution_id=get_institution_id_from_token(test_client.CLIENT.token)
+        )
         tag_id = get_tag_id(tag)
 
         if not tag_id:
@@ -73,10 +87,10 @@ class TestBasic:
 
         import_response = test_client.import_tm(os.path.join(script_path, "..", "data", "EN_SV_tmx.zip"), tag_id)
         job_id = None
-        if isinstance(import_response, dict) and "job_id" in import_response:
-            job_id = import_response["job_id"]
-        elif hasattr(import_response, "job_id"):
-            job_id = import_response.job_id
+        if isinstance(import_response, dict) and "jobs" in import_response and import_response.get("jobs") and "id" in import_response["jobs"][0]:
+            job_id = import_response["jobs"][0]["id"]
+        elif hasattr(import_response, "jobs") and import_response.jobs and hasattr(import_response.jobs[0], "id"):
+            job_id = import_response.jobs[0].id
 
         assert job_id is not None, f"Query should return job_id"
 

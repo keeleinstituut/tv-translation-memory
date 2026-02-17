@@ -161,8 +161,13 @@ class RestClient:
     response = self._call_api(api_path, 'get')
     return response.json()
 
-  def set_tag(self, tagname, **kwargs):
-    response = self._call_api('/tags/{}'.format(tagname), 'post',params=kwargs)
+  def set_tag(self, tag_id, **kwargs):
+    if tag_id:
+        endpoint = '/tags/{}'.format(tag_id)
+    else:
+        endpoint = '/tags'
+
+    response = self._call_api(endpoint, 'post', data=json.dumps(kwargs), headers={'Content-Type': 'application/json'})
     return response.json()
 
   def delete_tag(self, tagname, **kwargs):
@@ -199,14 +204,12 @@ class RestClient:
   def _call_api(self, suffix, method='get', params={}, data={}, headers={}, files={}, stream=False):
     # Imitating do-while: first, try to call method with JWT authentication. If failed, try authorizing with the credentials
     # and call it again. If failed again -> raise an exception
-    logging.debug("Api: {}, method: {}, Params: ".format(suffix, method, params))
     t_start = timer()
 
     for i in range(0,2):
       response = None
       if self.token:
-        logging.info("JWT Token: {}".format(self.token))
-        headers.update({'Authorization': 'JWT {}'.format(self.token)})
+        headers.update({'Authorization': 'Bearer {}'.format(self.token)})
         response = getattr(requests, method)(self._get_url(suffix), params=params, data=data, headers=headers, files=files, stream=stream, verify=False)
       logging.debug("------ {}, response: {}".format(i, response))
       #if response != None: logging.debug("Request: {}".format(response.request.__dict__))

@@ -7,8 +7,8 @@ class TestClient:
     res = self.CLIENT.set_user(username=user, role=role, password=user) #
     return res
 
-  def create_tag(self, tag, type):
-    res = self.CLIENT.set_tag(tag, type=type, name=tag)
+  def create_tag(self, **kwargs):
+    res = self.CLIENT.set_tag(None, **kwargs)
     return res
 
   def delete_tag(self, tag):
@@ -46,5 +46,5 @@ class TestClient:
   def get_tag(self, tag):
     return self.CLIENT.get_tag(tag)
 
-  def set_tag(self, tag, name):
-    return self.CLIENT.set_tag(tag, name=name)
+  def update_tag(self, tag_id, **kwargs):
+    return self.CLIENT.set_tag(tag_id, **kwargs)

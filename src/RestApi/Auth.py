@@ -43,9 +43,10 @@ SSO_REALM_ROLE_PREFIX = 'sso_realm/'
 SSO_REALM_FULL_READ_ONLY = SSO_REALM_ROLE_PREFIX + "tv-translation-memory-service-full-read-only-access"
 SSO_REALM_CREATE_TM = SSO_REALM_ROLE_PREFIX + "tv-translation-memory-service-create-tm"
 SSO_REALM_IMPORT_TM = SSO_REALM_ROLE_PREFIX + "tv-translation-memory-service-import-tm"
+SSO_REALM_ADMIN = SSO_REALM_ROLE_PREFIX + "admin"
 
 # Admin permission requires admin role
-admin_permission = Permission(RoleNeed(ADMIN))
+admin_permission = Permission(RoleNeed(ADMIN)).union(Permission(RoleNeed(SSO_REALM_ADMIN)))
 sso_full_read_only_permission = Permission(RoleNeed(SSO_REALM_FULL_READ_ONLY))
 sso_realm_create_tm_permission = Permission(RoleNeed(SSO_REALM_CREATE_TM))
 sso_realm_import_tm_permission = Permission(RoleNeed(SSO_REALM_IMPORT_TM))
